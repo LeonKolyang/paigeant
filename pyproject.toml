@@ -1,0 +1,35 @@
+[project]
+name = "paigeant"
+version = "0.1.0"
+description = "Durable workflow orchestration for AI agents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.11.7",
+    "pydantic-ai>=0.4.7",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.25.0",
+]
+dev = [
+    "httpx>=0.28.1",
+    "ipython>=9.4.0",
+    "redis>=6.2.0",
+    "rq>=2.4.1",
+]
+
+[dependency-groups]
+test = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["paigeant*"]
