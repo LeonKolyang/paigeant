@@ -9,25 +9,33 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
+class SerializedDeps(BaseModel):
+    data: Optional[dict]  # serialized values (or None if no deps)
+    type: Optional[str]  # class name, e.g. "MyDeps"
+    module: Optional[str]  # module path, e.g. "my_project.agents.deps"
+
+
 class ActivitySpec(BaseModel):
     """Defines one step in a workflow."""
 
-    name: str
+    agent_name: str
+    prompt: str
+    deps: Optional[SerializedDeps] = None  # Additional dependencies for the activity
     arguments: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RoutingSlip(BaseModel):
     """Describes remaining, executed and compensating activities."""
 
-    itinerary: List[str] = Field(default_factory=list)
-    executed: List[str] = Field(default_factory=list)
-    compensations: List[str] = Field(default_factory=list)
+    itinerary: List[ActivitySpec] = Field(default_factory=list)
+    executed: List[ActivitySpec] = Field(default_factory=list)
+    compensations: List[ActivitySpec] = Field(default_factory=list)
 
-    def next_step(self) -> Optional[str]:
+    def next_step(self) -> Optional[ActivitySpec]:
         """Get the next step to execute."""
         return self.itinerary[0] if self.itinerary else None
 
-    def mark_complete(self, step: str) -> None:
+    def mark_complete(self, step: ActivitySpec) -> None:
         """Mark a step as completed and remove from itinerary."""
         if self.itinerary and self.itinerary[0] == step:
             completed_step = self.itinerary.pop(0)

@@ -5,8 +5,18 @@ from __future__ import annotations
 import uuid
 from typing import Any, Dict, List, Optional
 
-from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip
+from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip, SerializedDeps
+from .deps.serializer import DependencySerializer
 from .transports import BaseTransport
+
+
+def find_variable_name(obj):
+    """Find the variable name(s) that reference this object"""
+    names = []
+    for name, value in globals().items():
+        if value is obj:
+            names.append(name)
+    return names
 
 
 class WorkflowDispatcher:
@@ -14,10 +24,30 @@ class WorkflowDispatcher:
 
     def __init__(self, transport: BaseTransport) -> None:
         self._transport = transport
+        self.activities: List[ActivitySpec] = []
+
+    def register_activity(
+        self, agent: Any, prompt: str, deps: Any, agent_name: Optional[str] = None
+    ) -> ActivitySpec:
+        """Register an activity with the dispatcher."""
+        agent_name = agent_name or find_variable_name(agent)
+
+        serialized, deps_type, deps_module = DependencySerializer.serialize(deps)
+
+        activity = ActivitySpec(
+            agent_name=agent,
+            prompt=prompt,
+            deps=SerializedDeps(
+                data=serialized,
+                type=deps_type,
+                module=deps_module,
+            ),
+        )
+        self.activities.append(activity)
+        return activity
 
     async def dispatch_workflow(
         self,
-        activities: List[ActivitySpec],
         variables: Optional[Dict[str, Any]] = None,
         obo_token: Optional[str] = None,
         topic: str = "workflows",
@@ -37,8 +67,7 @@ class WorkflowDispatcher:
         correlation_id = str(uuid.uuid4())
 
         # Build routing slip from activities
-        itinerary = [activity.name for activity in activities]
-        routing_slip = RoutingSlip(itinerary=itinerary)
+        routing_slip = RoutingSlip(itinerary=self.activities)
 
         # Create the message
         message = PaigeantMessage(
@@ -49,6 +78,7 @@ class WorkflowDispatcher:
         )
 
         # Publish to transport
+        topic = routing_slip.next_step().agent_name
         await self._transport.publish(topic, message)
 
         return correlation_id
