@@ -2,16 +2,17 @@
 
 from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip
 from .dispatch import WorkflowDispatcher
-from .integration import PlannerAgentDeps, create_planner_agent
+from .execute import ActivityExecutor
+from .integration import PaigeantAgent
 from .transports import get_transport
 
 __version__ = "0.1.0"
 __all__ = [
     "ActivitySpec",
+    "ActivityExecutor",
     "RoutingSlip",
     "PaigeantMessage",
     "WorkflowDispatcher",
-    "PlannerAgentDeps",
-    "create_planner_agent",
     "get_transport",
+    "PaigeantAgent",
 ]
