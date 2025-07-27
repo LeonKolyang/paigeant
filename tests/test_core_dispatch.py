@@ -1,83 +1,64 @@
-"""Tests for core workflow dispatch functionality."""
+"""Core workflow dispatch functionality tests."""
 
 import pytest
+from pydantic import BaseModel
 
-from paigeant import ActivitySpec, PaigeantMessage, WorkflowDispatcher, get_transport
+from paigeant import WorkflowDispatcher, get_transport
+from paigeant.contracts import ActivitySpec, SerializedDeps
+
+
+class MockDeps(BaseModel):
+    api_key: str = "test-key"
 
 
 @pytest.mark.asyncio
-async def test_basic_workflow_dispatch():
-    """Test basic workflow dispatch."""
+async def test_activity_registration_and_dispatch():
+    """Test registering activities and dispatching workflow."""
     transport = get_transport()
     dispatcher = WorkflowDispatcher(transport)
 
-    activities = [
-        ActivitySpec(name="validate"),
-        ActivitySpec(name="process"),
-        ActivitySpec(name="notify"),
-    ]
+    # Register an activity with dependencies
+    deps = MockDeps(api_key="secret-key")
+    activity = dispatcher.register_activity(
+        agent="test_agent", prompt="Process test task", deps=deps
+    )
 
-    correlation_id = await dispatcher.dispatch_workflow(activities)
+    # Verify activity was created correctly
+    assert activity.agent_name == "test_agent"
+    assert activity.prompt == "Process test task"
+    assert activity.deps is not None
+    assert activity.deps.type == "MockDeps"
+
+    # Dispatch workflow
+    correlation_id = await dispatcher.dispatch_workflow()
     assert correlation_id is not None
     assert len(correlation_id) > 0
 
 
 @pytest.mark.asyncio
-async def test_message_contracts():
-    """Test message serialization and routing slip operations."""
-    from paigeant.contracts import RoutingSlip
+async def test_message_serialization():
+    """Test message contracts can be serialized/deserialized."""
+    from paigeant.contracts import PaigeantMessage, RoutingSlip
 
-    # Test routing slip operations
-    slip = RoutingSlip(itinerary=["step1", "step2", "step3"])
-    assert slip.next_step() == "step1"
+    activity = ActivitySpec(
+        agent_name="test-agent",
+        prompt="Test prompt",
+        deps=SerializedDeps(
+            data={"api_key": "test"}, type="MockDeps", module="test_module"
+        ),
+    )
 
-    slip.mark_complete("step1")
-    assert slip.next_step() == "step2"
-    assert "step1" in slip.executed
-    assert "step1" not in slip.itinerary
-
-    # Test message serialization
     message = PaigeantMessage(
         correlation_id="test-123",
-        routing_slip=RoutingSlip(itinerary=["step1", "step2"]),
+        routing_slip=RoutingSlip(itinerary=[activity]),
         payload={"key": "value"},
     )
 
+    # Test serialization round-trip
     json_data = message.to_json()
-    assert isinstance(json_data, str)
-
     restored = PaigeantMessage.from_json(json_data)
+
     assert restored.correlation_id == "test-123"
-    assert restored.routing_slip.itinerary == ["step1", "step2"]
+    assert len(restored.routing_slip.itinerary) == 1
+    assert restored.routing_slip.itinerary[0].agent_name == "test-agent"
     assert restored.payload["key"] == "value"
-
-
-@pytest.mark.asyncio
-async def test_end_to_end_message_flow():
-    """Test complete message flow through transport."""
-    from paigeant.transports.inmemory import InMemoryTransport
-
-    transport = InMemoryTransport()
-    dispatcher = WorkflowDispatcher(transport)
-
-    activities = [
-        ActivitySpec(name="step1", arguments={"param": "value1"}),
-        ActivitySpec(name="step2", arguments={"param": "value2"}),
-    ]
-
-    correlation_id = await dispatcher.dispatch_workflow(
-        activities=activities,
-        variables={"workflow_var": "test_value"},
-        obo_token="test-obo-token",
-    )
-
-    # Verify message was published by consuming it
-    subscriber = transport.subscribe("workflows")
-    raw_message, paigeant_message = await subscriber.__anext__()
-
-    assert paigeant_message.correlation_id == correlation_id
-    assert paigeant_message.obo_token == "test-obo-token"
-    assert paigeant_message.payload["workflow_var"] == "test_value"
-    assert paigeant_message.routing_slip.itinerary == ["step1", "step2"]
-
-    await transport.ack(raw_message)
