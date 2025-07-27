@@ -14,6 +14,14 @@ def get_transport() -> BaseTransport:
 
     if backend == "inmemory":
         return InMemoryTransport()
+    elif backend == "redis":
+        from .redis import RedisTransport
+
+        return RedisTransport(
+            host=os.getenv("REDIS_HOST", "localhost"),
+            port=int(os.getenv("REDIS_PORT", "6379")),
+            password=os.getenv("REDIS_PASSWORD"),
+        )
     else:
         raise ValueError(f"Unsupported transport backend: {backend}")
 
