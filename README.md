@@ -1,26 +1,110 @@
 # Paigeant
 
-Durable workflow orchestration for AI agents.
+**Durable workflow orchestration for AI agents in distributed systems**
 
-## Overview
+*Transform fragile agent call chains into resilient, production-ready workflows*
 
-Paigeant provides the messaging infrastructure to connect multiple AI agents into resilient, distributed workflows. It's designed to complement frameworks like pydantic-ai by handling the cross-service orchestration layer.
+---
+
+## What is Paigeant?
+
+Paigeant is a Python library that provides the messaging infrastructure to orchestrate AI agents across distributed services. It solves the fundamental problem of building resilient, multi-agent workflows that can survive crashes, network failures, and deployments without losing work or state.
+
+**The Problem**: Chaining AI agents together with direct calls creates a "distributed monolith" - if any agent crashes, the entire workflow fails catastrophically.
+
+**The Solution**: Paigeant transforms fragile call chains into durable, message-driven workflows where each step is independent, recoverable, and can resume exactly where it left off.
+
+```
+❌ Fragile: Agent A → Agent B → Agent C → Agent D (crashes cascade)
+✅ Resilient: Agent A → Queue → Agent B → Queue → Agent C → Queue → Agent D
+```
+
+## Core Principles
+
+Paigeant is built on three foundational architectural principles:
+
+1. **🔄 Asynchronous-First Communication** - All inter-agent communication is async by default, eliminating blocking calls and cascade failures
+2. **💾 Durable Execution** - Workflows survive crashes because state lives in messages, not memory
+3. **🔒 Zero-Trust Messaging** - Built-in security with OAuth delegation and cryptographic message integrity
+
+## What You Can Build
+
+### Real-World Use Cases
+
+**Customer Onboarding Pipeline**
+```python
+onboarding_workflow = [
+    "validate-customer-data",
+    "create-customer-account", 
+    "setup-payment-method",
+    "send-welcome-email"
+]
+```
+If payment processing fails, the workflow holds state and retries with backup methods - no lost progress.
+
+**E-commerce Order Processing**
+```python
+order_workflow = [
+    "validate-order",
+    "check-inventory", 
+    "process-payment",
+    "update-inventory",
+    "generate-shipping-label",
+    "send-confirmation"
+]
+```
+Each step can be handled by specialized AI agents, with automatic retry and recovery.
+
+**Support Ticket Automation**
+```python
+support_workflow = [
+    "classify-ticket-priority",
+    "route-to-specialist",
+    "research-customer-history", 
+    "generate-response",
+    "schedule-follow-up"
+]
+```
+Sophisticated AI analysis at each step, with human handoff capabilities.
 
 ## Key Features
 
-- **Asynchronous messaging** - All inter-agent communication is async-first
-- **Durable execution** - Workflows survive crashes and restarts
-- **Pluggable transports** - Support for in-memory, RabbitMQ, Redis Streams
-- **Routing slip pattern** - Workflow logic travels with the message
-- **Security-ready** - Built-in support for on-behalf-of tokens and signatures
+- **🚀 Asynchronous messaging** - Non-blocking, resilient inter-agent communication
+- **⚡ Durable execution** - Workflows survive crashes, restarts, and deployments  
+- **🔌 Pluggable transports** - In-memory, RabbitMQ, Redis Streams support
+- **📋 Routing slip pattern** - Workflow logic travels with the message
+- **🛡️ Security-ready** - OAuth tokens and message signing built-in
+- **🔍 Observable** - Correlation IDs for monitoring and debugging
+- **🎯 AI-native** - Built-in pydantic-ai integration
 
 ## Quick Start
 
-### Basic Workflow Dispatch
+### 1. Install Paigeant
+
+```bash
+uv add paigeant
+```
+
+### 2. Define Your Workflow
+
+Think of your business process as independent steps:
+
+```python
+from paigeant import ActivitySpec
+
+onboarding_steps = [
+    ActivitySpec(name="validate-customer-data"),
+    ActivitySpec(name="create-customer-account"),
+    ActivitySpec(name="setup-payment-method"),
+    ActivitySpec(name="send-welcome-email"),
+]
+```
+
+### 3. Dispatch the Workflow
 
 ```python
 import asyncio
-from paigeant import ActivitySpec, WorkflowDispatcher, get_transport
+from paigeant import WorkflowDispatcher, get_transport
 
 async def main():
     transport = get_transport()
@@ -28,56 +112,198 @@ async def main():
     
     dispatcher = WorkflowDispatcher(transport)
     
-    activities = [
-        ActivitySpec(name="validate-input"),
-        ActivitySpec(name="create-account"),
-        ActivitySpec(name="send-notification")
-    ]
+    correlation_id = await dispatcher.dispatch_workflow(
+        activities=onboarding_steps,
+        variables={
+            "customer_email": "new.customer@example.com",
+            "subscription_tier": "premium"
+        }
+    )
     
-    correlation_id = await dispatcher.dispatch_workflow(activities)
     print(f"Workflow dispatched: {correlation_id}")
-    
     await transport.disconnect()
 
 asyncio.run(main())
 ```
 
-### With pydantic-ai Integration
+### 4. Build Workers for Each Step
+
+Each activity gets handled by a dedicated service:
 
 ```python
-from paigeant import create_planner_agent, PlannerAgentDeps, WorkflowDispatcher, get_transport
+# Worker service handling "validate-customer-data" messages
+async def handle_validation(message):
+    customer_email = message.payload["customer_email"]
+    
+    # Use your existing agents/logic here
+    is_valid = await customer_validator_agent.validate(customer_email)
+    
+    if is_valid:
+        # Mark complete and continue workflow
+        message.routing_slip.mark_complete("validate-customer-data")
+        await transport.publish("workflows", message)
+    else:
+        # Handle validation failure with custom logic
+        await handle_validation_error(message)
+```
 
-# Setup
-transport = get_transport()
-dispatcher = WorkflowDispatcher(transport)
-deps = PlannerAgentDeps(workflow_dispatcher=dispatcher)
+## AI Agent Integration
 
-# Create agent
-agent = create_planner_agent()
+### With pydantic-ai
 
-# Run agent - it can dispatch workflows via tools
+Paigeant includes built-in integration for pydantic-ai agents:
+
+```python
+from paigeant import create_planner_agent, PlannerAgentDeps
+
+# Create an AI agent that can dispatch workflows
+agent = create_planner_agent(model="openai:gpt-4")
+
+# Give it workflow dispatch capabilities
+deps = PlannerAgentDeps(
+    workflow_dispatcher=dispatcher,
+    user_obo_token="user-session-token"
+)
+
+# Agent creates workflows from natural language
 result = await agent.run(
-    "Create a customer onboarding workflow",
+    "I need to onboard a new premium customer: john@example.com",
     deps=deps
 )
 ```
 
-## Architecture
+The AI agent automatically:
+1. Understands the request
+2. Creates appropriate workflow activities  
+3. Dispatches the workflow
+4. Returns a tracking ID
 
-Paigeant follows a federated architecture:
+### Agents as Workflow Steps
 
-- **Task Layer** (pydantic-ai): In-process agent execution
+Each workflow step can use sophisticated AI internally:
+
+```python
+async def handle_support_ticket(message):
+    ticket_data = message.payload
+    
+    # Use AI agent for analysis
+    support_agent = Agent(model="openai:gpt-4")
+    analysis = await support_agent.run(
+        f"Analyze this support ticket: {ticket_data}"
+    )
+    
+    # Continue workflow with analysis
+    message.payload["analysis"] = analysis.data
+    message.routing_slip.mark_complete("analyze-ticket")
+    await transport.publish("workflows", message)
+```
+
+## How It Works: Technical Architecture
+
+### The Routing Slip Pattern
+
+Every workflow message carries its own "itinerary" - a routing slip that tracks:
+
+- **Activities to complete**: The workflow's task list
+- **Completed activities**: What's been done
+- **Payload data**: Information flowing through the workflow
+- **Security context**: User permissions and message integrity
+
+```python
+# Example message structure
+{
+    "correlation_id": "uuid-here",
+    "routing_slip": {
+        "itinerary": ["validate", "create", "notify"],
+        "completed": ["validate"],
+        "current": "create"
+    },
+    "payload": {
+        "customer_email": "user@example.com",
+        "subscription_tier": "premium"
+    },
+    "security": {
+        "obo_token": "oauth-token",
+        "jws_signature": "cryptographic-signature"
+    }
+}
+```
+
+### Federated Architecture
+
+Paigeant follows a clean separation of concerns:
+
+- **Task Layer** (pydantic-ai): In-process agent execution and reasoning
 - **Workflow Layer** (paigeant): Cross-service message orchestration
 
-Messages carry their own routing slip, eliminating the need for centralized orchestrators while maintaining workflow visibility.
+This federated approach means:
+- No centralized orchestrator (eliminating single points of failure)
+- Each service owns its business logic
+- Workflow state travels with the message
+- Easy to scale and deploy independently
 
-## Installation
+### Transport Abstraction
+
+Paigeant works with any message broker:
+
+```python
+# Development
+export PAIGEANT_TRANSPORT=inmemory
+
+# Production options  
+export PAIGEANT_TRANSPORT=rabbitmq
+export PAIGEANT_TRANSPORT=redis
+```
+
+You can switch transports without changing workflow code, enabling:
+- **Local development** with in-memory queues
+- **Production deployment** with enterprise message brokers
+- **Hybrid architectures** mixing different transports
+
+## Key Benefits
+
+### For Developers
+- **🎯 Gradual adoption** - Start simple, add complexity as needed
+- **🔧 Technology flexibility** - Mix different AI frameworks and infrastructure  
+- **📊 Built-in observability** - Correlation IDs for monitoring and debugging
+- **🛡️ Security first** - User permissions flow through entire workflows
+
+### For Operations
+- **💪 Fault tolerance** - Graceful error handling and recovery
+- **🚀 Zero-downtime deployments** - Running workflows survive updates
+- **📈 Horizontal scaling** - Add workers without workflow changes
+- **🔍 Audit trails** - Complete workflow history and state tracking
+
+### For Business
+- **⏱️ Process reliability** - Critical workflows never lose progress
+- **🔄 Automatic recovery** - Temporary failures don't break business processes  
+- **📋 Workflow visibility** - Track complex processes end-to-end
+- **⚡ Faster iterations** - Independent services deploy and scale separately
+
+## When to Use Paigeant
+
+**✅ Use Paigeant when:**
+- Your workflow spans multiple services or teams
+- Steps take significant time (minutes to hours)
+- Failure recovery is business-critical
+- You need to track complex business processes
+- You're building production AI systems
+
+**❌ Don't use Paigeant when:**
+- Everything runs in a single process
+- You need millisecond response times  
+- The workflow is simple and unlikely to fail
+- You're just starting with AI agents (start simple first)
+
+## Installation & Setup
+
+### Installation
 
 ```bash
 uv add paigeant
 ```
 
-For development:
+### Development Setup
 
 ```bash
 git clone https://github.com/your-org/paigeant
@@ -85,28 +311,65 @@ cd paigeant
 uv pip install -e .
 ```
 
-## Testing
+### Configuration
+
+Configure your transport layer via environment variables:
+
+```bash
+# For development and testing
+export PAIGEANT_TRANSPORT=inmemory  # default
+
+# For production
+export PAIGEANT_TRANSPORT=rabbitmq
+export PAIGEANT_TRANSPORT=redis
+```
+
+### Testing
+
+Run the test suite:
 
 ```bash
 uv run pytest tests/ -v
 ```
 
-## Configuration
+## Getting Started Guide
 
-Set transport via environment variable:
+1. **Think in workflows**: Break your business process into independent steps
+2. **Start small**: Begin with 2-3 steps to understand the pattern  
+3. **Add durability gradually**: Start with in-memory transport, upgrade to production brokers
+4. **Monitor and observe**: Use correlation IDs to track workflow progress
+5. **Scale up**: Add more complex workflows as your confidence grows
 
-```bash
-export PAIGEANT_TRANSPORT=inmemory  # default
-export PAIGEANT_TRANSPORT=rabbitmq
-export PAIGEANT_TRANSPORT=redis
-```
-
-## Status
+## Project Status
 
 🚧 **Early Development** - This is Feature 1 (Transport Layer) of the paigeant roadmap.
 
-Coming next:
-- Routing slip execution engine
-- Worker runtime
-- RabbitMQ and Redis transports
-- State store integration
+**Current capabilities:**
+- ✅ Core message contracts and routing slip pattern
+- ✅ In-memory transport for development
+- ✅ Basic workflow dispatch and execution
+- ✅ pydantic-ai agent integration
+
+**Coming next:**
+- 🔄 RabbitMQ and Redis transport implementations
+- 🔄 Advanced routing slip execution engine  
+- 🔄 Production worker runtime
+- 🔄 State store integration for persistence
+- 🔄 Comprehensive monitoring and observability
+
+## Contributing
+
+Paigeant is designed to solve real-world distributed AI challenges. We welcome contributions, especially:
+
+- Transport implementations (Kafka, Azure Service Bus, etc.)
+- Security enhancements (additional JOSE support)
+- Monitoring and observability features
+- Documentation and examples
+
+## License
+
+MIT License - see LICENSE file for details.
+
+---
+
+*Paigeant transforms the complexity of distributed AI systems into manageable, resilient building blocks. It's not magic - it's proven architectural patterns applied to the unique challenges of AI agent orchestration.*
