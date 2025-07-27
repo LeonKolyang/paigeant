@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+.pytest_cache/
 
 # Virtual environments
 .venv
@@ -12,3 +13,7 @@ wheels/
 # Env files
 .env
 .envrc
+
+# Project-specific files
+.github/
+.vscode/
