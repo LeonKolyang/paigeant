@@ -10,6 +10,8 @@ from paigeant.contracts import (
     RoutingSlip,
     SerializedDeps,
 )
+import types
+import sys
 
 
 class MockDeps(BaseModel):
@@ -37,3 +39,38 @@ async def test_activity_extraction():
     extracted = executor.extract_activity(message)
     assert extracted.agent_name == "test_agent"
     assert extracted.prompt == "Test task"
+
+
+@pytest.mark.asyncio
+async def test_handle_activity_updates_payload_and_forwards(monkeypatch):
+    """_handle_activity should update message payload and forward."""
+    transport = get_transport()
+    executor = ActivityExecutor(transport, "DummyAgent", "dummy_module")
+
+    class DummyAgent:
+        async def run(self, prompt, deps=None):
+            return {"result": prompt.upper()}
+
+    dummy_mod = types.ModuleType("dummy_module")
+    dummy_mod.DummyAgent = DummyAgent()
+    monkeypatch.setitem(sys.modules, "dummy_module", dummy_mod)
+
+    activity = ActivitySpec(agent_name="DummyAgent", prompt="hello")
+    message = PaigeantMessage(
+        correlation_id="c1",
+        routing_slip=RoutingSlip(itinerary=[activity]),
+        payload={},
+    )
+
+    called = False
+
+    async def forward_stub(self, _transport):
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(PaigeantMessage, "forward_to_next_step", forward_stub)
+
+    await executor._handle_activity(message, activity)
+
+    assert message.payload["result"] == "HELLO"
+    assert called
