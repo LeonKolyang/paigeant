@@ -5,6 +5,7 @@ from .dispatch import WorkflowDispatcher
 from .execute import ActivityExecutor
 from .integration import PaigeantAgent
 from .transports import get_transport
+from .db import WorkflowDB
 
 __version__ = "0.1.0"
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "WorkflowDispatcher",
     "get_transport",
     "PaigeantAgent",
+    "WorkflowDB",
 ]
