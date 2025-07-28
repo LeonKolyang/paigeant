@@ -66,3 +66,5 @@ async def test_forward_to_next_step():
 
     assert message.routing_slip.executed[0].agent_name == "test_agent"
     assert len(transport._queues["next_agent"]) == 1
+    # Result from agent execution should be stored on the message
+    assert message.payload["test_agent"] == "success (no tool calls)"
