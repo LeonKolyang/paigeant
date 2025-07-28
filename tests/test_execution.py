@@ -94,3 +94,58 @@ async def test_retry_on_failure(monkeypatch):
     await executor._handle_activity(activity, retry_msg)
     step = executor._steps[("cid", "test_agent")]
     assert step.status == "success"
+@pytest.mark.asyncio
+async def test_handle_activity_success(monkeypatch):
+    transport = get_transport()
+
+    class AgentOne:
+        async def run(self, prompt: str, deps=None):
+            return {"foo": "bar"}
+
+    class AgentTwo:
+        def __init__(self):
+            self.called = False
+
+        async def run(self, prompt: str, deps=None):
+            self.called = True
+            return {"done": True}
+
+    import types, sys
+
+    module = types.ModuleType("success_module")
+    module.agent1 = AgentOne()
+    module.agent2 = AgentTwo()
+    sys.modules["success_module"] = module
+
+    executor = ActivityExecutor(transport, "agent1", "success_module")
+
+    activity1 = ActivitySpec(agent_name="agent1", prompt="step1")
+    activity2 = ActivitySpec(agent_name="agent2", prompt="step2")
+    msg = PaigeantMessage(
+        correlation_id="wf",
+        routing_slip=RoutingSlip(itinerary=[activity1, activity2]),
+        payload={},
+    )
+
+    await executor._handle_activity(activity1, msg)
+
+    step = executor._steps[("wf", "agent1")]
+    assert step.status == "success"
+    assert step.outputs == {"foo": "bar"}
+    assert msg.payload["foo"] == "bar"
+    assert transport._queues["agent2"]
+
+@pytest.mark.asyncio
+async def test_schedule_retry(monkeypatch):
+    captured = {}
+
+    async def fake_sleep(delay):
+        captured['delay'] = delay
+
+    monkeypatch.setattr('asyncio.sleep', fake_sleep)
+    monkeypatch.setattr('paigeant.utils.retry.compute_backoff', lambda a: 0.5)
+
+    from paigeant.utils.retry import schedule_retry
+
+    await schedule_retry(3)
+    assert captured['delay'] == 0.5
