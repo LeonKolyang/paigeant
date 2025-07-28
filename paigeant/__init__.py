@@ -3,7 +3,7 @@
 from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip
 from .dispatch import WorkflowDispatcher
 from .execute import ActivityExecutor
-from .integration import PaigeantAgent
+from .agent.wrapper import PageantAgent
 from .transports import get_transport
 
 __version__ = "0.1.0"

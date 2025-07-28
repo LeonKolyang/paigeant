@@ -30,6 +30,7 @@ class RoutingSlip(BaseModel):
     itinerary: List[ActivitySpec] = Field(default_factory=list)
     executed: List[ActivitySpec] = Field(default_factory=list)
     compensations: List[ActivitySpec] = Field(default_factory=list)
+    inserted_steps: int = 0
 
     def next_step(self) -> Optional[ActivitySpec]:
         """Get the next step to execute."""
@@ -40,6 +41,19 @@ class RoutingSlip(BaseModel):
         if self.itinerary and self.itinerary[0] == step:
             completed_step = self.itinerary.pop(0)
             self.executed.append(completed_step)
+
+    def insert_activities(self, new_steps: List[ActivitySpec], limit: int) -> int:
+        """Insert new activities immediately after the current step."""
+        remaining = max(0, limit - self.inserted_steps)
+        allowed = new_steps[:remaining]
+        if not allowed:
+            return 0
+        next_index = 1  # insert after current step
+        self.itinerary = (
+            self.itinerary[:next_index] + allowed + self.itinerary[next_index:]
+        )
+        self.inserted_steps += len(allowed)
+        return len(allowed)
 
 
 class PaigeantMessage(BaseModel):
