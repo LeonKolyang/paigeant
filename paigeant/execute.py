@@ -36,11 +36,11 @@ class ActivityExecutor:
         """Start listening for workflow messages on the given topic."""
         async for raw_message, message in self._transport.subscribe(self._agent_name):
             activity = self.extract_activity(message)
-            await self._handle_activity(activity)
+            await self._handle_activity(activity, message)
             # Acknowledge the message was processed
             await self._transport.ack(raw_message)
 
-    async def _handle_activity(self, activity: ActivitySpec) -> None:
+    async def _handle_activity(self, activity: ActivitySpec, message: PaigeantMessage) -> None:
         """Handle incoming workflow activity."""
         print(f"Received activity: {activity}")
         print(f"Agent path: {self._agent_path}, Agent name: {self._agent_name}")
@@ -62,4 +62,9 @@ class ActivityExecutor:
                 print(f"❌ Failed to deserialize deps: {e}")
 
         result = await agent.run(activity.prompt, deps=deps)
+        if hasattr(result, "output"):
+            message.payload[self._agent_name] = result.output
         print(result)
+
+        # Forward message to next activity in workflow
+        await message.forward_to_next_step(self._transport)

@@ -8,6 +8,11 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .transports import BaseTransport
+
 
 class SerializedDeps(BaseModel):
     data: Optional[dict]  # serialized values (or None if no deps)
@@ -34,6 +39,15 @@ class RoutingSlip(BaseModel):
     def next_step(self) -> Optional[ActivitySpec]:
         """Get the next step to execute."""
         return self.itinerary[0] if self.itinerary else None
+
+    @property
+    def current_activity(self) -> Optional[ActivitySpec]:
+        """Alias for ``next_step`` for semantic clarity."""
+        return self.next_step()
+
+    def is_finished(self) -> bool:
+        """Return ``True`` when all activities have been executed."""
+        return not self.itinerary
 
     def mark_complete(self, step: ActivitySpec) -> None:
         """Mark a step as completed and remove from itinerary."""
@@ -65,3 +79,14 @@ class PaigeantMessage(BaseModel):
     def from_json(cls, data: str) -> "PaigeantMessage":
         """Deserialize message from JSON."""
         return cls.model_validate_json(data)
+
+    async def forward_to_next_step(self, transport: "BaseTransport") -> None:
+        """Advance workflow and publish message to next activity if any."""
+        current = self.routing_slip.next_step()
+        if current is None:
+            return
+
+        self.routing_slip.mark_complete(current)
+        next_activity = self.routing_slip.next_step()
+        if next_activity:
+            await transport.publish(next_activity.agent_name, self)
