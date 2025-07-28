@@ -65,3 +65,16 @@ class PaigeantMessage(BaseModel):
     def from_json(cls, data: str) -> "PaigeantMessage":
         """Deserialize message from JSON."""
         return cls.model_validate_json(data)
+
+    async def forward_to_next_step(self, transport: "BaseTransport") -> None:
+        """Advance routing slip and publish to next activity if available."""
+        current = self.routing_slip.next_step()
+        if current:
+            self.routing_slip.mark_complete(current)
+        next_step = self.routing_slip.next_step()
+        if next_step:
+            await transport.publish(next_step.agent_name, self)
+        else:
+            import logging
+
+            logging.info("Workflow %s completed", self.correlation_id)
