@@ -1,6 +1,7 @@
 """Dependency serialization tests."""
 
 import pytest
+from dataclasses import dataclass
 from pydantic import BaseModel
 
 from paigeant.deps.deserializer import DependencyDeserializer
@@ -10,6 +11,11 @@ from paigeant.deps.serializer import DependencySerializer
 class MockDeps(BaseModel):
     api_key: str = "test-key"
     timeout: int = 30
+
+
+@dataclass
+class Sample:
+    value: int
 
 
 @pytest.mark.asyncio
@@ -64,3 +70,21 @@ async def test_none_serialization():
     restored = DependencyDeserializer.deserialize(data, type_name, module)
 
     assert restored is None
+
+
+@pytest.mark.asyncio
+async def test_dataclass_serialization():
+    """Dataclass dependencies serialize via ``vars`` and support fallback import."""
+    
+    deps = Sample(5)
+
+    data, type_name, module = DependencySerializer.serialize(deps)
+
+    assert data == {"value": 5}
+    assert type_name == "Sample"
+    assert module == __name__
+
+    restored = DependencyDeserializer.deserialize(data, type_name, "__main__", fallback_module=module)
+
+    assert isinstance(restored, Sample)
+    assert restored.value == 5
