@@ -10,13 +10,12 @@ from .deps.serializer import DependencySerializer
 from .transports import BaseTransport
 
 
-def find_variable_name(obj):
-    """Find the variable name(s) that reference this object"""
-    names = []
+def find_variable_name(obj: Any) -> str:
+    """Best-effort lookup of the variable name referencing ``obj``."""
     for name, value in globals().items():
         if value is obj:
-            names.append(name)
-    return names
+            return name
+    return getattr(obj, "__name__", str(obj))
 
 
 class WorkflowDispatcher:
@@ -24,18 +23,24 @@ class WorkflowDispatcher:
 
     def __init__(self, transport: BaseTransport) -> None:
         self._transport = transport
-        self.activities: List[ActivitySpec] = []
+        # store registered activities in the order they are added
+        self._registered_activities: List[ActivitySpec] = []
 
     def register_activity(
-        self, agent: Any, prompt: str, deps: Any, agent_name: Optional[str] = None
+        self,
+        agent: Any,
+        prompt: str,
+        deps: Any,
+        agent_name: Optional[str] = None,
     ) -> ActivitySpec:
         """Register an activity with the dispatcher."""
+        # derive agent name from argument if not provided
         agent_name = agent_name or find_variable_name(agent)
 
         serialized, deps_type, deps_module = DependencySerializer.serialize(deps)
 
         activity = ActivitySpec(
-            agent_name=agent,
+            agent_name=agent_name,
             prompt=prompt,
             deps=SerializedDeps(
                 data=serialized,
@@ -43,7 +48,7 @@ class WorkflowDispatcher:
                 module=deps_module,
             ),
         )
-        self.activities.append(activity)
+        self._registered_activities.append(activity)
         return activity
 
     async def dispatch_workflow(
@@ -67,11 +72,12 @@ class WorkflowDispatcher:
         correlation_id = str(uuid.uuid4())
 
         # Build routing slip from activities
-        routing_slip = RoutingSlip(itinerary=self.activities)
+        routing_slip = RoutingSlip(itinerary=self._registered_activities)
 
         # Create the message
         message = PaigeantMessage(
             correlation_id=correlation_id,
+            trace_id=correlation_id,
             obo_token=obo_token,
             routing_slip=routing_slip,
             payload=variables or {},
