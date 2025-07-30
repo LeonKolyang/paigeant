@@ -20,11 +20,20 @@ Demonstrates how to run `ActivityExecutor` workers for handling workflow activit
 - Command-line agent loading
 - Activity execution infrastructure
 
+### `three_agent_workflow_example.py` - Sequential Multi-Agent Workflow
+Shows a complete three-agent workflow with automatic message forwarding between agents.
+
+**Features:**
+- Sequential agent processing (input → enrichment → output)
+- Automatic message forwarding between workflow steps
+- Distributed execution across multiple worker processes
+- End-to-end workflow correlation tracking
+
 ## Key Patterns
 
 ### 1. PaigeantAgent vs Direct Calls
 ```python
-# ✅ Paigeant: Specialized workflow agents
+# Paigeant: Specialized workflow agents
 joke_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
     deps_type=JokeWorkflowDeps,
