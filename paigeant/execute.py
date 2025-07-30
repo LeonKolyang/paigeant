@@ -43,7 +43,9 @@ class ActivityExecutor:
             # Acknowledge the message was processed
             await self._transport.ack(raw_message)
 
-    async def _handle_activity(self, activity: ActivitySpec, message: PaigeantMessage) -> None:
+    async def _handle_activity(
+        self, activity: ActivitySpec, message: PaigeantMessage
+    ) -> None:
         """Handle incoming workflow activity."""
         print(f"Received activity: {activity}")
         print(f"Agent path: {self._agent_path}, Agent name: {self._agent_name}")
@@ -59,10 +61,10 @@ class ActivityExecutor:
                     deps_data=activity.deps.data,
                     deps_type=activity.deps.type,
                     deps_module=activity.deps.module,
-                    fallback_module=self._agent_path,  # optional fallback if needed
+                    fallback_module=self._agent_path,
                 )
             except Exception as e:
-                print(f"❌ Failed to deserialize deps: {e}")
+                print(f"Failed to deserialize deps: {e}")
 
         result = await agent.run(activity.prompt, deps=deps)
         if hasattr(result, "output"):

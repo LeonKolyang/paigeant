@@ -64,12 +64,7 @@ class RedisTransport(BaseTransport[str]):
     async def subscribe(
         self, topic: str, timeout: Optional[float] = None
     ) -> AsyncIterator[Tuple[str, PaigeantMessage]]:
-        """Subscribe to messages from Redis queue.
-
-        Args:
-            topic: The topic to subscribe to
-            timeout: Maximum time in seconds to keep connection open. If None, runs indefinitely.
-        """
+        """Subscribe to messages from Redis queue."""
         if not self._redis:
             await self.connect()
 

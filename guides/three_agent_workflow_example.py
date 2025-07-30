@@ -1,4 +1,4 @@
-"""Three-agent joke workflow example showing sequential message forwarding.
+"""Three-agent joke workflow showing sequential message forwarding.
 
 This example demonstrates how to create a workflow where:
 1. First agent extracts the joke topic from user input
@@ -45,12 +45,12 @@ topic_extractor_agent = PaigeantAgent(
 @topic_extractor_agent.tool
 async def validate_topic(ctx: RunContext[JokeWorkflowDeps], user_input: str) -> str:
     """Validate and extract topic from user input."""
-    print(f"🔍 Extracting topic from: {user_input}")
+    print(f"Extracting topic from: {user_input}")
     async with httpx.AsyncClient() as client:
         response = await client.get(
             "https://httpbin.org/json",
             headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
-            params={"extract": user_input}
+            params={"extract": user_input},
         )
     response.raise_for_status()
     return f"Topic validated from: {user_input[:30]}..."
@@ -72,13 +72,13 @@ joke_generator_agent = PaigeantAgent(
 @joke_generator_agent.tool
 async def fetch_jokes(ctx: RunContext[JokeWorkflowDeps], topic: str) -> str:
     """Fetch jokes from external API based on topic."""
-    print(f"🎭 Generating jokes for topic: {topic}")
-    
+    print(f"Generating jokes for topic: {topic}")
+
     async with httpx.AsyncClient() as client:
         response = await client.get(
             "https://httpbin.org/json",
             headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
-            params={"topic": topic, "count": 3}
+            params={"topic": topic, "count": 3},
         )
     response.raise_for_status()
     return f"Generated 3 jokes about {topic}"
@@ -99,102 +99,84 @@ joke_selector_agent = PaigeantAgent(
 @joke_selector_agent.tool
 async def format_joke(ctx: RunContext[JokeWorkflowDeps], jokes_data: str) -> str:
     """Format the selected joke with proper styling."""
-    print(f"✨ Formatting best joke from: {jokes_data}")
-    
+    print(f"Formatting best joke from: {jokes_data}")
+
     async with httpx.AsyncClient() as client:
         response = await client.post(
             "https://httpbin.org/post",
             headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
-            json={"format": jokes_data, "style": "comedy"}
+            json={"format": jokes_data, "style": "comedy"},
         )
     response.raise_for_status()
     return f"Formatted joke selected from: {jokes_data}"
 
 
 async def run_three_agent_joke_workflow():
-    """Run the complete three-agent joke workflow."""
-    print("🚀 Starting three-agent joke workflow example...")
-    
+    """Run the three-agent joke workflow."""
+    print("Starting three-agent joke workflow...")
+
     # Setup workflow infrastructure
     os.environ["PAIGEANT_TRANSPORT"] = "redis"
-    
+
     transport = get_transport()
     dispatcher = WorkflowDispatcher(transport)
-    
+
     # Setup dependencies
     http_key = HttpKey(api_key="joke-api-key-12345")
-    deps = JokeWorkflowDeps(
-        http_key=http_key,
-        user_token="joke-session-token"
-    )
-    
+    deps = JokeWorkflowDeps(http_key=http_key, user_token="joke-session-token")
+
     # Register first activity: Topic extraction
     dispatcher.register_activity(
         agent="topic_extractor_agent",
         prompt="Extract joke topic from: 'Tell me a funny joke about programming!'",
         deps=deps,
     )
-    
+
     # Register second activity: Joke generation
     dispatcher.register_activity(
-        agent="joke_generator_agent", 
+        agent="joke_generator_agent",
         prompt="Generate 3 jokes based on the topic from the first agent",
         deps=deps,
     )
-    
+
     # Register third activity: Joke selection and formatting
     dispatcher.register_activity(
         agent="joke_selector_agent",
         prompt="Select and format the best joke from the generated list",
         deps=deps,
     )
-    
+
     # Dispatch the workflow
     correlation_id = await dispatcher.dispatch_workflow()
-    print(f"✅ Three-agent joke workflow dispatched!")
-    print(f"📋 Correlation ID: {correlation_id}")
-    print(f"🔄 Workflow will process through all three agents in sequence")
-    
+    print(f"Three-agent joke workflow dispatched!")
+    print(f"Correlation ID: {correlation_id}")
+    print(f"Workflow will process through all three agents in sequence")
+
     return correlation_id
 
 
 async def main():
-    """Main example runner."""
+    """Main runner."""
+    print("Three-agent workflow starting...")
+
     correlation_id = await run_three_agent_joke_workflow()
-    
-    print(f"""
-📖 JOKE WORKFLOW SUMMARY:
-========================
-This example created a three-agent joke workflow with correlation ID: {correlation_id}
 
-WORKFLOW STEPS:
-1. topic_extractor_agent → Extracts joke topic from user input ("programming")
-2. joke_generator_agent → Generates 3 jokes about the topic (receives forwarded message)
-3. joke_selector_agent → Selects best joke and formats it (receives joke list)
+    print(
+        f"""
+Workflow dispatched with correlation ID: {correlation_id}
 
-TO EXECUTE THE WORKFLOW:
-Run the executor workers in separate terminals:
+To run the workers for each agent, start these in separate terminals:
 
-Terminal 1 (Topic Extractor):
-export PAIGEANT_TRANSPORT=redis
+1. Topic extractor worker:
 uv run python guides/execution_example.py topic_extractor_agent guides.three_agent_workflow_example
 
-Terminal 2 (Joke Generator):  
-export PAIGEANT_TRANSPORT=redis
+2. Joke generator worker:
 uv run python guides/execution_example.py joke_generator_agent guides.three_agent_workflow_example
 
-Terminal 3 (Joke Selector):
-export PAIGEANT_TRANSPORT=redis
+3. Joke selector worker:
 uv run python guides/execution_example.py joke_selector_agent guides.three_agent_workflow_example
-
-BENEFITS OF THIS PATTERN:
-✅ Sequential processing - each agent builds on previous work
-✅ Separation of concerns - extract → generate → select & format
-✅ Fault tolerance - individual agent failures don't crash entire workflow
-✅ Scalability - multiple workers can handle each agent type
-✅ Observability - correlation ID tracks entire joke creation process
-✅ Automatic forwarding - topic flows to generator, jokes flow to selector
-""")
+"""
+    )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Paigeant Workflow Guides
 
-Practical examples showing how to implement workflow patterns with paigeant.
+Examples showing how to implement workflow patterns with paigeant.
 
 ## Example Scripts
 

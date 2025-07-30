@@ -2,7 +2,7 @@ It looks like I haven't yet reconstructed the raw content sections into memory. 
 
 I’ll start with:
 
-### ✅ Section 1: Routing Slip Execution and Forwarding
+### Section 1: Routing Slip Execution and Forwarding
 
 This will include:
 
@@ -12,11 +12,11 @@ This will include:
 Let me write that now.
 
 
-### ✅ Section 1: Routing Slip Execution and Forwarding
+### Section 1: Routing Slip Execution and Forwarding
 
 ---
 
-#### 🧠 Concept
+#### Concept
 
 Paigeant executes workflows using a routing slip, which travels with each message and defines the sequence of activities (agent steps). The core behavior is:
 
@@ -33,7 +33,7 @@ This allows:
 
 ---
 
-#### 🧪 Pseudocode
+#### Pseudocode
 
 ```python
 # routing_slip.py
@@ -87,13 +87,13 @@ Let's begin with **Section 1: Routing Slip-Based Agent Forwarding** and generate
 
 ---
 
-### ✅ SECTION 1: Routing Slip-Based Agent Forwarding
+### SECTION 1: Routing Slip-Based Agent Forwarding
 
 **Purpose:** Automatically forward a Paigeant message to the next agent once a step is completed.
 
 ---
 
-## 💡 Concept Recap
+## Concept Recap
 
 * Each `PaigeantMessage` carries a routing slip (`List[ActivitySpec]`) defining the full plan.
 * After an agent completes its activity, it should not just return a result but **trigger the next agent** in the itinerary.
@@ -101,7 +101,7 @@ Let's begin with **Section 1: Routing Slip-Based Agent Forwarding** and generate
 
 ---
 
-## 📝 Files Involved
+## Files Involved
 
 * `paigeant/core/executor.py` — handles message execution
 * `paigeant/contracts.py` — defines `ActivitySpec`, `PaigeantMessage`, etc.
@@ -110,7 +110,7 @@ Let's begin with **Section 1: Routing Slip-Based Agent Forwarding** and generate
 
 ---
 
-## 🔧 Diff: `executor.py`
+## Diff: `executor.py`
 
 ```diff
 @@ class ActivityExecutor:
@@ -140,7 +140,7 @@ Let's begin with **Section 1: Routing Slip-Based Agent Forwarding** and generate
 
 ---
 
-## 🔧 Diff: `contracts.py`
+## Diff: `contracts.py`
 
 ```diff
 @@ class PaigeantMessage(BaseModel):
@@ -163,7 +163,7 @@ Let's begin with **Section 1: Routing Slip-Based Agent Forwarding** and generate
 
 ---
 
-## ✅ Summary
+## Summary
 
 We added logic to:
 
@@ -175,11 +175,11 @@ This enables seamless execution of workflows across multiple agents without need
 
 ---
 
-### ✅ Section 2: Workflow Dispatcher & Dependency Serialization
+### Section 2: Workflow Dispatcher & Dependency Serialization
 
 ---
 
-#### 🧠 Concept
+#### Concept
 
 To dispatch a workflow, the `WorkflowDispatcher` constructs a `PaigeantMessage` containing:
 
@@ -201,7 +201,7 @@ This design ensures:
 
 ---
 
-#### 🧪 Pseudocode
+#### Pseudocode
 
 ```python
 # dispatcher.py
@@ -264,11 +264,11 @@ def deserialize_deps(serialized: Dict[str, Any]) -> BaseModel:
 
 ---
 
-### ✅ Section 3: Agent Forwarding Logic (Forward-to-Next-Agent)
+### Section 3: Agent Forwarding Logic (Forward-to-Next-Agent)
 
 ---
 
-#### 🧠 Concept
+#### Concept
 
 To enable agents to participate in multi-step workflows without requiring centralized coordination after each step, each agent must:
 
@@ -288,7 +288,7 @@ This is a core MVP requirement for linear agent chaining.
 
 ---
 
-#### 🧪 Pseudocode
+#### Pseudocode
 
 ```python
 # message.py (PaigeantMessage method)
@@ -341,11 +341,11 @@ async def handle_edit_order(message: PaigeantMessage, transport: Transport):
 
 ---
 
-### ✅ Section 4: Dynamic Itinerary Editing via Agents (PageantAgent & Tools)
+### Section 4: Dynamic Itinerary Editing via Agents (PageantAgent & Tools)
 
 ---
 
-#### 🧠 Concept
+#### Concept
 
 In traditional orchestrated workflows, the itinerary (or routing slip) is fixed up front. But with Paigeant, we may want to empower **certain agents** to modify the itinerary at runtime — for example, inserting extra steps based on the outcome of the current task.
 
@@ -358,7 +358,7 @@ This section introduces the concept of a `PageantAgent`: a lightweight wrapper o
 
 ---
 
-#### 🧱 Requirements
+#### Requirements
 
 * Must not change the public interface of `Agent` usage
 * Should be opt-in (only agents instantiated as `PageantAgent` get the tool)
@@ -368,7 +368,7 @@ This section introduces the concept of a `PageantAgent`: a lightweight wrapper o
 
 ---
 
-#### 🧪 Pseudocode
+#### Pseudocode
 
 ```python
 # tools/edit_itinerary.py
@@ -456,7 +456,7 @@ This design offers:
 
 ---
 
-### 💡 Concept Recap
+### Concept Recap
 
 * Paigeant now supports a special `PageantAgent` wrapper around any `pydantic_ai.Agent`.
 * This wrapper includes a hidden tool `EditItinerary`, which enables controlled itinerary modification.
@@ -470,7 +470,7 @@ This design offers:
 
 ---
 
-## 📝 Files Involved
+## Files Involved
 
 * `paigeant/agent/wrapper.py` – defines `PageantAgent`
 * `paigeant/tools/edit_itinerary.py` – defines `EditItinerary` tool
@@ -478,7 +478,7 @@ This design offers:
 
 ---
 
-## 🔧 Diff: `agent/wrapper.py`
+## Diff: `agent/wrapper.py`
 
 ```python
 # paigeant/agent/wrapper.py
@@ -513,7 +513,7 @@ class PageantAgent:
 
 ---
 
-## 🔧 Diff: `tools/edit_itinerary.py`
+## Diff: `tools/edit_itinerary.py`
 
 ```python
 # paigeant/tools/edit_itinerary.py
@@ -544,7 +544,7 @@ class EditItinerary(Tool):
 
 ---
 
-## ✅ Summary
+## Summary
 
 We’ve added:
 
@@ -559,11 +559,11 @@ This feature allows self-directed orchestration for agents while keeping user-le
 
 ---
 
-### ✅ Section 5: State Persistence with SQLite/Postgres (Observability + Retry Foundation)
+### Section 5: State Persistence with SQLite/Postgres (Observability + Retry Foundation)
 
 ---
 
-#### 🧠 Concept
+#### Concept
 
 Reliable multi-step workflows need **durable state** to support:
 
@@ -576,7 +576,7 @@ Paigeant should persist **critical workflow execution data**, but keep the schem
 
 ---
 
-#### 🧱 Data Model Design
+#### Data Model Design
 
 Three tables (models):
 
@@ -635,7 +635,7 @@ Where state should be persisted:
 
 ---
 
-#### 🧪 Pseudocode
+#### Pseudocode
 
 ```python
 # workflow_db.py
@@ -690,11 +690,11 @@ This provides enough persistence to:
 * Lay the foundation for retries (next section)
 
 ---
-### ✅ Section 6: Retry Semantics
+### Section 6: Retry Semantics
 
 ---
 
-#### 🧠 Concept
+#### Concept
 
 Reliable multi-agent execution must tolerate transient failures (network hiccups, temporary rate limits, etc.). A single agent step should be **automatically retried** within its budgeted limits and with **exponential backoff + jitter**.
 
@@ -721,7 +721,7 @@ Retry handling must be:
 
 ---
 
-#### ⛓️ Retry Workflow
+#### Retry Workflow
 
 1. Agent fails its step
 2. Raises `ActivityFailed(error, retryable=True)`
@@ -737,7 +737,7 @@ Retry handling must be:
 
 ---
 
-#### 🧪 Pseudocode
+#### Pseudocode
 
 ```python
 # exceptions.py
@@ -763,7 +763,7 @@ async def schedule_retry(transport, topic, message, delay_sec: float) -> None:
 
 ---
 
-#### 🧪 Worker Logic Snippet
+#### Worker Logic Snippet
 
 ```python
 # inside activity executor loop
@@ -798,7 +798,7 @@ except ActivityFailed as e:
 
 ---
 
-### 💡 Concept Recap
+### Concept Recap
 
 Paigeant now supports:
 
@@ -810,7 +810,7 @@ Paigeant now supports:
 
 ---
 
-## 📝 Files Involved
+## Files Involved
 
 * `paigeant/models.py` – schema changes to track retries
 * `paigeant/executor.py` – retry logic in activity execution
@@ -819,7 +819,7 @@ Paigeant now supports:
 
 ---
 
-## 🔧 Diff: `contracts.py`
+## Diff: `contracts.py`
 
 ```python
 # paigeant/contracts.py
@@ -834,7 +834,7 @@ class ActivityFailed(Exception):
 
 ---
 
-## 🔧 Diff: `models.py`
+## Diff: `models.py`
 
 ```python
 # paigeant/models.py
@@ -863,7 +863,7 @@ class StepExecution(Base, AsyncAttrs):
 
 ---
 
-## 🔧 Diff: `utils/retry.py`
+## Diff: `utils/retry.py`
 
 ```python
 # paigeant/utils/retry.py
@@ -882,7 +882,7 @@ async def schedule_retry(attempt: int):
 
 ---
 
-## 🔧 Diff: `executor.py` (in `_handle_activity()` method)
+## Diff: `executor.py` (in `_handle_activity()` method)
 
 ```python
 # paigeant/executor.py
@@ -917,7 +917,7 @@ async def _handle_activity(self, activity: ActivitySpec):
 
 ---
 
-## ✅ Summary
+## Summary
 
 We’ve added robust retry infrastructure by:
 

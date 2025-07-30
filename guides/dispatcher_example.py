@@ -63,7 +63,7 @@ joke_generation_agent = PaigeantAgent(
 @joke_generation_agent.tool
 async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
     async with httpx.AsyncClient() as client:
-        print(f"🔧 Using deps: {ctx.deps}")
+        print(f"Using deps: {ctx.deps}")
         response = await client.get(
             "https://httpbin.org/json",  # Using working endpoint
             params={"count": count},
