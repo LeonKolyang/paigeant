@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+from .transports import BaseTransport
+
+logger = logging.getLogger(__name__)
 
 
 class SerializedDeps(BaseModel):
@@ -34,6 +39,15 @@ class RoutingSlip(BaseModel):
     def next_step(self) -> Optional[ActivitySpec]:
         """Get the next step to execute."""
         return self.itinerary[0] if self.itinerary else None
+
+    @property
+    def current_activity(self) -> Optional[ActivitySpec]:
+        """Alias for ``next_step`` for semantic clarity."""
+        return self.next_step()
+
+    def is_finished(self) -> bool:
+        """Return ``True`` when all activities have been executed."""
+        return not self.itinerary
 
     def mark_complete(self, step: ActivitySpec) -> None:
         """Mark a step as completed and remove from itinerary."""
@@ -65,3 +79,41 @@ class PaigeantMessage(BaseModel):
     def from_json(cls, data: str) -> "PaigeantMessage":
         """Deserialize message from JSON."""
         return cls.model_validate_json(data)
+
+    async def forward_to_next_step(self, transport: "BaseTransport") -> None:
+        """Advance workflow and publish message to next activity if any.
+
+        Raises:
+            Exception: If forwarding fails after marking current step complete.
+                      The workflow state may be inconsistent in this case.
+        """
+        current = self.routing_slip.next_step()
+        if current is None:
+            logger.debug(
+                f"No current activity to forward for correlation_id={self.correlation_id}"
+            )
+            return
+
+        # Mark current step complete before attempting to forward
+        self.routing_slip.mark_complete(current)
+        logger.info(
+            f"Completed activity {current.agent_name} for correlation_id={self.correlation_id}"
+        )
+
+        next_activity = self.routing_slip.next_step()
+        if next_activity is None:
+            logger.info(f"Workflow completed for correlation_id={self.correlation_id}")
+            return
+
+        try:
+            await transport.publish(next_activity.agent_name, self)
+            logger.info(
+                f"Forwarded message to {next_activity.agent_name} for correlation_id={self.correlation_id}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to forward message to {next_activity.agent_name} "
+                f"for correlation_id={self.correlation_id}: {e}"
+            )
+            # Note: Current activity is already marked complete, so workflow state may be inconsistent
+            raise
