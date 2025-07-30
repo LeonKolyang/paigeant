@@ -27,14 +27,17 @@ class ActivityExecutor:
         self._transport = transport
         self._agent_name = agent_name
         self._agent_path = agent_path
+        self.executed_activities = []  # Track successfully executed activities
 
     def extract_activity(self, message: PaigeantMessage) -> ActivitySpec:
         """Extract routing slip from the message."""
         return message.routing_slip.next_step()
 
-    async def start(self) -> None:
+    async def start(self, timeout=None) -> None:
         """Start listening for workflow messages on the given topic."""
-        async for raw_message, message in self._transport.subscribe(self._agent_name):
+        async for raw_message, message in self._transport.subscribe(
+            self._agent_name, timeout=timeout
+        ):
             activity = self.extract_activity(message)
             await self._handle_activity(activity, message)
             # Acknowledge the message was processed

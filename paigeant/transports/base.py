@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, AsyncIterator, Generic, Tuple, TypeVar
+from typing import Any, AsyncIterator, Generic, Optional, Tuple, TypeVar
 
 from ..contracts import PaigeantMessage
 
@@ -28,9 +28,14 @@ class BaseTransport(Generic[RawMessageT], metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def subscribe(
-        self, topic: str
+        self, topic: str, timeout: Optional[float] = None
     ) -> AsyncIterator[Tuple[RawMessageT, PaigeantMessage]]:
-        """Yield raw transport message and PaigeantMessage pairs."""
+        """Yield raw transport message and PaigeantMessage pairs.
+
+        Args:
+            topic: The topic to subscribe to
+            timeout: Maximum time in seconds to keep connection open. If None, runs indefinitely.
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
