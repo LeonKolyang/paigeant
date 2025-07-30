@@ -61,14 +61,28 @@ class RedisTransport(BaseTransport[str]):
         message_json = message.to_json()
         await self._redis.lpush(queue_name, message_json)
 
-    async def subscribe(self, topic: str) -> AsyncIterator[Tuple[str, PaigeantMessage]]:
-        """Subscribe to messages from Redis queue."""
+    async def subscribe(
+        self, topic: str, timeout: Optional[float] = None
+    ) -> AsyncIterator[Tuple[str, PaigeantMessage]]:
+        """Subscribe to messages from Redis queue.
+
+        Args:
+            topic: The topic to subscribe to
+            timeout: Maximum time in seconds to keep connection open. If None, runs indefinitely.
+        """
         if not self._redis:
             await self.connect()
 
         queue_name = f"paigeant:{topic}"
+        start_time = asyncio.get_event_loop().time() if timeout else None
 
         while True:
+            # Check timeout if specified
+            if timeout and start_time:
+                elapsed = asyncio.get_event_loop().time() - start_time
+                if elapsed >= timeout:
+                    break
+
             # Blocking pop with timeout
             result = await self._redis.brpop(queue_name, timeout=1)
 
