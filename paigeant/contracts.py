@@ -8,10 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .transports import BaseTransport
+from .transports import BaseTransport
 
 
 class SerializedDeps(BaseModel):
