@@ -63,7 +63,7 @@ joke_generation_agent = PaigeantAgent(
 @joke_generation_agent.tool
 async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
     async with httpx.AsyncClient() as client:
-        print(f"🔧 Using deps: {ctx.deps}")
+        print(f"Using deps: {ctx.deps}")
         response = await client.get(
             "https://httpbin.org/json",  # Using working endpoint
             params={"count": count},
@@ -94,27 +94,6 @@ async def main():
     )
 
     correlation_id = await dispatcher.dispatch_workflow()
-
-    # print("Testing direct agent call...")
-    # result = await joke_generation_agent.run("Generate a test joke", deps=planner_deps)
-    # print(f"Direct call result: {result.output}")
-
-    # print("\nTesting planner agent workflow dispatch...")
-    # # PAIGEANT: Direct natural language instruction to planner agent
-    # # This is equivalent to the original joke_factory tool call
-    # result = await joke_selection_agent.run(
-    #     "Create a workflow to generate 3 programming jokes with activities: generate-jokes, select-best, format-result",
-    #     deps=planner_deps,
-    # )
-    # print(f"Planner agent result: {result.output}")
-
-    # # Show how to request jokes similar to original example
-    # print("\nTesting joke request (like original example)...")
-    # result = await joke_selection_agent.run(
-    #     "I need 5 programming jokes. Create a workflow with activities: generate-jokes, review-quality, format-output",
-    #     deps=planner_deps,
-    # )
-    # print(f"Joke request result: {result.output}")
 
 
 if __name__ == "__main__":

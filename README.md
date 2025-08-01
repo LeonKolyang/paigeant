@@ -15,15 +15,17 @@ Paigeant is a Python library that provides the messaging infrastructure to orche
 **The Solution**: Paigeant transforms fragile call chains into durable, message-driven workflows where each step is independent, recoverable, and can resume exactly where it left off.
 
 ```
-❌ Fragile: Agent A → Agent B → Agent C → Agent D (crashes cascade)
-✅ Resilient: Agent A → Queue → Agent B → Queue → Agent C → Queue → Agent D
+Fragile: Agent A → Agent B → Agent C → Agent D (crashes cascade)
+Fragile: Agent A calls Agent B, which calls Agent C, which calls Agent D
+
+Resilient: Agent A → Queue → Agent B → Queue → Agent C → Queue → Agent D
 ```
 
 ## Core Principles
 
 Paigeant is built on three foundational architectural principles:
 
-1. **🔄 Asynchronous-First Communication** - All inter-agent communication is async by default, eliminating blocking calls and cascade failures
+1. **Asynchronous-First Communication** - All inter-agent communication is async by default, eliminating blocking calls and cascade failures
 2. **💾 Durable Execution** - Workflows survive crashes because state lives in messages, not memory
 3. **🔒 Zero-Trust Messaging** - Built-in security with OAuth delegation and cryptographic message integrity
 
@@ -69,13 +71,13 @@ Sophisticated AI analysis at each step, with human handoff capabilities.
 
 ## Key Features
 
-- **🚀 Asynchronous messaging** - Non-blocking, resilient inter-agent communication
-- **⚡ Durable execution** - Workflows survive crashes, restarts, and deployments  
-- **🔌 Pluggable transports** - In-memory, RabbitMQ, Redis Streams support
-- **📋 Routing slip pattern** - Workflow logic travels with the message
-- **🛡️ Security-ready** - OAuth tokens and message signing built-in
-- **🔍 Observable** - Correlation IDs for monitoring and debugging
-- **🎯 AI-native** - Built-in pydantic-ai integration
+- **Asynchronous messaging** - Non-blocking, resilient inter-agent communication
+- **Durable execution** - Workflows survive crashes, restarts, and deployments  
+- **Pluggable transports** - In-memory, RabbitMQ, Redis Streams support
+- **Routing slip pattern** - Workflow logic travels with the message
+- **Security-ready** - OAuth tokens and message signing built-in
+- **Observable** - Correlation IDs for monitoring and debugging
+- **AI-native** - Built-in pydantic-ai integration
 
 ## Quick Start
 
@@ -263,33 +265,33 @@ You can switch transports without changing workflow code, enabling:
 ## Key Benefits
 
 ### For Developers
-- **🎯 Gradual adoption** - Start simple, add complexity as needed
-- **🔧 Technology flexibility** - Mix different AI frameworks and infrastructure  
-- **📊 Built-in observability** - Correlation IDs for monitoring and debugging
-- **🛡️ Security first** - User permissions flow through entire workflows
+- **Gradual adoption** - Start simple, add complexity as needed
+- **Technology flexibility** - Mix different AI frameworks and infrastructure  
+- **Built-in observability** - Correlation IDs for monitoring and debugging
+- **Security first** - User permissions flow through entire workflows
 
 ### For Operations
-- **💪 Fault tolerance** - Graceful error handling and recovery
-- **🚀 Zero-downtime deployments** - Running workflows survive updates
-- **📈 Horizontal scaling** - Add workers without workflow changes
-- **🔍 Audit trails** - Complete workflow history and state tracking
+- **Fault tolerance** - Graceful error handling and recovery
+- **Zero-downtime deployments** - Running workflows survive updates
+- **Horizontal scaling** - Add workers without workflow changes
+- **Audit trails** - Complete workflow history and state tracking
 
 ### For Business
-- **⏱️ Process reliability** - Critical workflows never lose progress
-- **🔄 Automatic recovery** - Temporary failures don't break business processes  
-- **📋 Workflow visibility** - Track complex processes end-to-end
-- **⚡ Faster iterations** - Independent services deploy and scale separately
+- **Process reliability** - Critical workflows never lose progress
+- **Automatic recovery** - Temporary failures don't break business processes  
+- **Workflow visibility** - Track complex processes end-to-end
+- **Faster iterations** - Independent services deploy and scale separately
 
 ## When to Use Paigeant
 
-**✅ Use Paigeant when:**
+**Use Paigeant when:**
 - Your workflow spans multiple services or teams
 - Steps take significant time (minutes to hours)
 - Failure recovery is business-critical
 - You need to track complex business processes
 - You're building production AI systems
 
-**❌ Don't use Paigeant when:**
+**Don't use Paigeant when:**
 - Everything runs in a single process
 - You need millisecond response times  
 - The workflow is simple and unlikely to fail
@@ -342,20 +344,20 @@ uv run pytest tests/ -v
 
 ## Project Status
 
-🚧 **Early Development** - This is Feature 1 (Transport Layer) of the paigeant roadmap.
+**Early Development** - This is Feature 1 (Transport Layer) of the paigeant roadmap.
 
 **Current capabilities:**
-- ✅ Core message contracts and routing slip pattern
-- ✅ In-memory transport for development
-- ✅ Basic workflow dispatch and execution
-- ✅ pydantic-ai agent integration
+- Core message contracts and routing slip pattern
+- In-memory transport for development
+- Basic workflow dispatch and execution
+- pydantic-ai agent integration
 
 **Coming next:**
-- 🔄 RabbitMQ and Redis transport implementations
-- 🔄 Advanced routing slip execution engine  
-- 🔄 Production worker runtime
-- 🔄 State store integration for persistence
-- 🔄 Comprehensive monitoring and observability
+- RabbitMQ and Redis transport implementations
+- Advanced routing slip execution engine  
+- Production worker runtime
+- State store integration for persistence
+- Comprehensive monitoring and observability
 
 ## Contributing
 
