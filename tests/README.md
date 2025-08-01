@@ -27,7 +27,7 @@ async def test():
     dispatcher = WorkflowDispatcher(transport)
     activities = [ActivitySpec(name='validate'), ActivitySpec(name='process'), ActivitySpec(name='notify')]
     correlation_id = await dispatcher.dispatch_workflow(activities)
-    print(f'✅ Test passed: {correlation_id}')
+    print(f'Test passed: {correlation_id}')
 
 asyncio.run(test())
 "

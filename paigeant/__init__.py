@@ -1,6 +1,6 @@
 """Paigeant: Durable workflow orchestration for AI agents."""
 
-from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip
+from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip, WorkflowDependencies
 from .dispatch import WorkflowDispatcher
 from .execute import ActivityExecutor
 from .agent.wrapper import PageantAgent
@@ -15,4 +15,5 @@ __all__ = [
     "WorkflowDispatcher",
     "get_transport",
     "PaigeantAgent",
+    "WorkflowDependencies",
 ]

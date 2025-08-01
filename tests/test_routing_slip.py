@@ -42,3 +42,22 @@ async def test_empty_routing_slip():
     assert slip.next_step() is None
     assert len(slip.itinerary) == 0
     assert len(slip.executed) == 0
+
+
+@pytest.mark.asyncio
+async def test_routing_slip_completion_state():
+    """Ensure completion helpers reflect workflow progress."""
+    step1 = ActivitySpec(agent_name="agent1", prompt="A")
+    step2 = ActivitySpec(agent_name="agent2", prompt="B")
+    slip = RoutingSlip(itinerary=[step1, step2])
+
+    assert slip.current_activity == step1
+    assert not slip.is_finished()
+
+    slip.mark_complete(step1)
+    assert slip.current_activity == step2
+    assert not slip.is_finished()
+
+    slip.mark_complete(step2)
+    assert slip.current_activity is None
+    assert slip.is_finished()

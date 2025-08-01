@@ -4,13 +4,10 @@ import asyncio
 import os
 import sys
 
-from paigeant import ActivityExecutor, ActivitySpec, WorkflowDispatcher, get_transport
+from paigeant import ActivityExecutor, get_transport
 
 
 async def main():
-    # Use Redis transport for cross-process messaging
-    os.environ["PAIGEANT_TRANSPORT"] = "redis"
-
     agent_name = sys.argv[1]
     agent_path = sys.argv[2]
 

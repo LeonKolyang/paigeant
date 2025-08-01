@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict, deque
-from typing import AsyncIterator, Deque, Dict, Tuple
+from typing import AsyncIterator, Deque, Dict, Optional, Tuple
 
 from ..contracts import PaigeantMessage
 from .base import BaseTransport
@@ -24,10 +24,23 @@ class InMemoryTransport(BaseTransport[Tuple[str, PaigeantMessage]]):
             self._queues[topic].append(raw)
 
     async def subscribe(
-        self, topic: str
+        self, topic: str, timeout: Optional[float] = None
     ) -> AsyncIterator[Tuple[Tuple[str, PaigeantMessage], PaigeantMessage]]:
-        """Subscribe to messages from topic."""
+        """Subscribe to messages from topic.
+
+        Args:
+            topic: The topic to subscribe to
+            timeout: Maximum time in seconds to keep connection open. If None, runs indefinitely.
+        """
+        start_time = asyncio.get_event_loop().time() if timeout else None
+
         while True:
+            # Check timeout if specified
+            if timeout and start_time:
+                elapsed = asyncio.get_event_loop().time() - start_time
+                if elapsed >= timeout:
+                    break
+
             async with self._lock:
                 if self._queues[topic]:
                     raw_message = self._queues[topic].popleft()
