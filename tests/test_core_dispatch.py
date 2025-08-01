@@ -3,11 +3,11 @@
 import pytest
 from pydantic import BaseModel
 
-from paigeant import WorkflowDispatcher, get_transport
+from paigeant import WorkflowDependencies, WorkflowDispatcher, get_transport
 from paigeant.contracts import ActivitySpec, SerializedDeps
 
 
-class MockDeps(BaseModel):
+class MockDeps(WorkflowDependencies):
     api_key: str = "test-key"
 
 
@@ -70,7 +70,7 @@ async def test_dispatcher_topic():
     transport = get_transport()
     dispatcher = WorkflowDispatcher(transport)
 
-    class Deps(BaseModel):
+    class Deps(WorkflowDependencies):
         token: str
 
     dispatcher.register_activity(agent="agent1", prompt="p1", deps=Deps(token="x"))
@@ -92,11 +92,11 @@ async def test_activity_serialization_in_registry():
     transport = get_transport()
     dispatcher = WorkflowDispatcher(transport)
 
-    class D(BaseModel):
+    class D(WorkflowDependencies):
         value: int
 
     dispatcher.register_activity(agent="agentA", prompt="p", deps=D(value=3))
 
     stored = dispatcher._registered_activities[0]
     assert stored.deps.type == "D"
-    assert stored.deps.data == {"value": 3}
+    assert stored.deps.data == {"previous_output": None, "user_token": None, "value": 3}
