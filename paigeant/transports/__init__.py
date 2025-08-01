@@ -6,6 +6,7 @@ import os
 
 from .base import BaseTransport
 from .inmemory import InMemoryTransport
+from .rabbitmq import RabbitMQTransport
 
 
 def get_transport() -> BaseTransport:
@@ -22,8 +23,12 @@ def get_transport() -> BaseTransport:
             port=int(os.getenv("REDIS_PORT", "6379")),
             password=os.getenv("REDIS_PASSWORD"),
         )
+    elif backend in {"rabbit", "rabbitmq"}:
+        from .rabbitmq import RabbitMQTransport
+
+        return RabbitMQTransport(url=os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost/"))
     else:
         raise ValueError(f"Unsupported transport backend: {backend}")
 
 
-__all__ = ["BaseTransport", "InMemoryTransport", "get_transport"]
+__all__ = ["BaseTransport", "InMemoryTransport", "RabbitMQTransport", "get_transport"]

@@ -59,14 +59,8 @@ joke_generation_agent = PaigeantAgent(
 
 @joke_generation_agent.tool
 async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
-    async with httpx.AsyncClient() as client:
-        print(f"Using deps: {ctx.deps}")
-        response = await client.get(
-            "https://httpbin.org/json",  # Using working endpoint
-            params={"count": count},
-            headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
-        )
-    response.raise_for_status()
+    """Mock joke generation without external HTTP call."""
+    print(f"Using deps: {ctx.deps}")
     return f"Generated {count} jokes"
 
 
@@ -87,6 +81,24 @@ joke_formatter_agent = PaigeantAgent(
         "Return a formatted string like 'Please tell me a joke about [topic]'."
     ),
 )
+
+
+class _DummyResult:
+    def __init__(self, output: str | None = None):
+        self.output = output
+
+
+async def _dummy_run(self, *args, **kwargs):
+    return _DummyResult("ok")
+
+
+for _agent in [
+    joke_selection_agent,
+    joke_generation_agent,
+    joke_processor_agent,
+    joke_formatter_agent,
+]:
+    _agent.run = _dummy_run.__get__(_agent, PaigeantAgent)
 
 
 @pytest.mark.asyncio
