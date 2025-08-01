@@ -52,3 +52,15 @@ async def test_redis_transport_import():
             pass
     except ImportError:
         pytest.fail("RedisTransport should be importable")
+
+
+@pytest.mark.asyncio
+async def test_rabbitmq_transport_import():
+    """RabbitMQ transport should import and instantiate."""
+    try:
+        from paigeant.transports.rabbitmq import RabbitMQTransport
+
+        transport = RabbitMQTransport()
+        assert transport.url.startswith("amqp")
+    except ImportError:
+        pytest.fail("RabbitMQTransport should be importable")
