@@ -6,19 +6,19 @@ import logging
 from importlib import import_module
 from typing import Any
 
-from pydantic import BaseModel
 from pydantic_ai import Agent
 
 from paigeant.deps.deserializer import DependencyDeserializer
 
-from .contracts import ActivitySpec, PaigeantMessage
+from .contracts import (
+    ActivitySpec,
+    PaigeantMessage,
+    PreviousOutput,
+    WorkflowDependencies,
+)
 from .transports import BaseTransport
 
 logger = logging.getLogger(__name__)
-
-
-class HttpKey(BaseModel):
-    api_key: str
 
 
 class ActivityExecutor:
@@ -69,8 +69,11 @@ class ActivityExecutor:
             except Exception as e:
                 print(f"Failed to deserialize deps: {e}")
 
-        result = await agent.run(activity.prompt, deps=deps)
-        
+        # Add previous agent outputs to deps for easy access
+        enhanced_deps = self._add_previous_outputs_to_deps(deps, message)
+
+        result = await agent.run(activity.prompt, deps=enhanced_deps)
+
         # Store agent result in message payload for downstream agents
         if hasattr(result, "output"):
             message.payload[self._agent_name] = result.output
@@ -80,9 +83,42 @@ class ActivityExecutor:
         else:
             # Store indication that agent completed successfully but returned None
             message.payload[self._agent_name] = None
-            
-        logger.info(f"Agent {self._agent_name} completed for correlation_id={message.correlation_id}")
+
+        logger.info(
+            f"Agent {self._agent_name} completed for correlation_id={message.correlation_id}"
+        )
         print(result)
 
         # Forward message to next activity in workflow
         await message.forward_to_next_step(self._transport)
+
+    def _add_previous_outputs_to_deps(
+        self, deps: WorkflowDependencies, message: PaigeantMessage
+    ) -> WorkflowDependencies:
+        """Add previous agent outputs to deps for easy access by the next agent."""
+
+        # If no previous outputs, return deps unchanged
+        if not message.payload:
+            return deps
+
+        # Get the latest output (last agent that ran)
+        latest_agent = message.routing_slip.previous_step().agent_name
+        latest_output = message.payload[latest_agent]
+        previous_output = PreviousOutput(agent_name=latest_agent, output=latest_output)
+
+        # If deps is None, create WorkflowDependencies with latest output
+        if deps is None:
+            return WorkflowDependencies(previous_output=previous_output)
+
+        # If deps is already WorkflowDependencies, update it
+        if isinstance(deps, WorkflowDependencies):
+            deps.previous_output = previous_output
+            return deps
+
+        # Fallback: deps exists but is not WorkflowDependencies
+        # This shouldn't happen in normal operation, but handle it gracefully
+        logger.warning(
+            f"Agent {self._agent_name} has non-WorkflowDependencies deps: {type(deps)}. "
+            "Previous outputs will not be available."
+        )
+        return deps
