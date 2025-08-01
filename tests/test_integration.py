@@ -5,7 +5,12 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import RunContext
 
-from paigeant import PaigeantAgent, WorkflowDispatcher, get_transport
+from paigeant import (
+    PaigeantAgent,
+    WorkflowDependencies,
+    WorkflowDispatcher,
+    get_transport,
+)
 from paigeant.execute import ActivityExecutor
 
 
@@ -13,10 +18,8 @@ class HttpKey(BaseModel):
     api_key: str
 
 
-class JokeWorkflowDeps(BaseModel):
+class JokeWorkflowDeps(WorkflowDependencies):
     """Dependencies for joke workflow agents."""
-
-    model_config = {"arbitrary_types_allowed": True}
 
     http_key: HttpKey
     user_token: str | None = None
