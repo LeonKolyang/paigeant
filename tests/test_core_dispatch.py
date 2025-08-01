@@ -65,7 +65,7 @@ async def test_message_serialization():
 
 
 @pytest.mark.asyncio
-async def test_dispatcher_trace_id_and_topic():
+async def test_dispatcher_topic():
     """WorkflowDispatcher publishes message with trace_id and correct topic."""
     transport = get_transport()
     dispatcher = WorkflowDispatcher(transport)
@@ -82,7 +82,6 @@ async def test_dispatcher_trace_id_and_topic():
     queue = transport._queues["agent1"]
     assert len(queue) == 1
     _, message = queue[0]
-    assert message.trace_id == correlation_id
     assert message.routing_slip.itinerary[0].agent_name == "agent1"
     assert message.routing_slip.itinerary[1].agent_name == "agent2"
 

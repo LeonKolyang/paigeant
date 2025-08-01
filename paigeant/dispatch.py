@@ -77,7 +77,6 @@ class WorkflowDispatcher:
         # Create the message
         message = PaigeantMessage(
             correlation_id=correlation_id,
-            trace_id=correlation_id,
             obo_token=obo_token,
             routing_slip=routing_slip,
             payload=variables or {},
