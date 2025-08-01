@@ -5,13 +5,32 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from .transports import BaseTransport
+if TYPE_CHECKING:
+    from .transports import BaseTransport
 
 logger = logging.getLogger(__name__)
+
+
+class PreviousOutput(BaseModel):
+    """Represents output from a previous agent in the workflow."""
+
+    agent_name: str
+    output: Any  # Can be any type, depending on the agent's output
+
+
+class WorkflowDependencies(BaseModel):
+    """Base class for workflow dependencies.
+
+    This can be extended to include any additional data needed by agents.
+    """
+
+    # Example dependency fields
+    user_token: Optional[str] = None  # User authentication token
+    previous_output: Optional[PreviousOutput] = None  # Output from previous agent
 
 
 class SerializedDeps(BaseModel):
@@ -54,6 +73,10 @@ class RoutingSlip(BaseModel):
         if self.itinerary and self.itinerary[0] == step:
             completed_step = self.itinerary.pop(0)
             self.executed.append(completed_step)
+
+    def previous_step(self) -> Optional[ActivitySpec]:
+        """Get the last executed step."""
+        return self.executed[-1] if self.executed else None
 
 
 class PaigeantMessage(BaseModel):

@@ -1,0 +1,117 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  PYTHON_CMD: uv run python
+  TRANSPORT: redis
+
+tasks:
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task --list
+
+  # Single Agent Example Tasks
+  single-agent:
+    desc: "Run single agent workflow example"
+    deps:
+      - redis-test
+    env:
+      PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
+    cmds:
+      - "{{.PYTHON_CMD}} -m guides.single_agent_example"
+
+  single-agent-worker:joke-generation:
+    desc: "Run joke generation agent worker for single agent example"
+    deps:
+      - redis-test
+    env:
+      PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
+    cmds:
+      - "{{.PYTHON_CMD}} -m guides.execution_example 'joke_generation_agent' 'guides.single_agent_example'"
+
+  # Multi Agent Example Tasks
+  multi-agent:
+    desc: "Run multi-agent workflow example (three agents)"
+    deps:
+      - redis-test
+    env:
+      PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
+    cmds:
+      - "{{.PYTHON_CMD}} -m guides.multi_agent_example"
+
+  multi-agent-worker:topic-extractor:
+    desc: "Run topic extractor agent worker for multi-agent example"
+    deps:
+      - redis-test
+    env:
+      PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
+    cmds:
+      - "{{.PYTHON_CMD}} -m guides.execution_example 'topic_extractor_agent' 'guides.multi_agent_example'"
+
+  multi-agent-worker:joke-generator:
+    desc: "Run joke generator agent worker for multi-agent example"
+    deps:
+      - redis-test
+    env:
+      PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
+    cmds:
+      - "{{.PYTHON_CMD}} -m guides.execution_example 'joke_generator_agent' 'guides.multi_agent_example'"
+
+  multi-agent-worker:joke-selector:
+    desc: "Run joke selector agent worker for multi-agent example"
+    deps:
+      - redis-test
+    env:
+      PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
+    cmds:
+      - "{{.PYTHON_CMD}} -m guides.execution_example 'joke_selector_agent' 'guides.multi_agent_example'"
+
+  # Convenience tasks for running all workers
+  single-agent-workers:
+    desc: "Start all single agent workers in parallel"
+    deps:
+      - single-agent-worker:joke-generation
+
+  multi-agent-workers:
+    desc: "Start all multi-agent workers in parallel"
+    deps:
+      - multi-agent-worker:topic-extractor
+      - multi-agent-worker:joke-generator
+      - multi-agent-worker:joke-selector
+
+  # Development and testing tasks
+  test:
+    desc: "Run tests"
+    cmds:
+      - "{{.PYTHON_CMD}} -m pytest tests/ -v"
+
+  redis-test:
+    desc: "Test if Redis server is running and reachable"
+    cmds:
+      - "{{.PYTHON_CMD}} -c \"import redis, sys; r = redis.Redis(); r.ping(); print('✓ Redis is running and reachable')\" || (echo '✗ Redis is not reachable' && exit 1)"
+
+
+  # Demo workflows
+  demo:single:
+    desc: "Demo: Run single agent example and show instructions"
+    cmds:
+      - echo "Starting single agent demo..."
+      - echo "1. Starting workflow dispatcher..."
+      - task: single-agent
+      - echo ""
+      - echo "2. To run the worker, execute in separate terminals:"
+      - echo "   task single-agent-worker:joke-generation"
+
+  demo:multi:
+    desc: "Demo: Run multi-agent example and show instructions"
+    cmds:
+      - echo "Starting multi-agent demo..."
+      - echo "1. Starting workflow dispatcher..."
+      - task: multi-agent
+      - echo ""
+      - echo "2. To run workers, execute in separate terminals:"
+      - echo "   task multi-agent-worker:topic-extractor"
+      - echo "   task multi-agent-worker:joke-generator"
+      - echo "   task multi-agent-worker:joke-selector"
