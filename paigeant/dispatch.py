@@ -24,11 +24,11 @@ def find_variable_name(obj: Any) -> str:
 class WorkflowDispatcher:
     """Service responsible for dispatching new workflows."""
 
-    def __init__(self, transport: BaseTransport) -> None:
-        self._transport = transport
+    def __init__(self) -> None:
         # store registered activities in the order they are added
         self._itinerary: List[ActivitySpec] = []
         self._activity_registry: Dict[str, ActivitySpec] = {}
+        self._agent_registry: Dict[str, PaigeantAgent] = {}
 
     def _create_activity(
         self,
@@ -72,6 +72,7 @@ class WorkflowDispatcher:
 
     async def dispatch_workflow(
         self,
+        transport: BaseTransport,
         variables: Optional[Dict[str, Any]] = None,
         obo_token: Optional[str] = None,
         topic: str = "workflows",
@@ -104,6 +105,6 @@ class WorkflowDispatcher:
 
         # Publish to transport
         topic = routing_slip.next_step().agent_name
-        await self._transport.publish(topic, message)
+        await transport.publish(topic, message)
 
         return correlation_id
