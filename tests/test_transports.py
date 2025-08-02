@@ -5,6 +5,11 @@ import pytest
 from paigeant.contracts import ActivitySpec, PaigeantMessage, RoutingSlip
 from paigeant.transports.inmemory import InMemoryTransport
 
+try:
+    from paigeant.transports.kafka import KafkaTransport
+except Exception:  # pragma: no cover - aiokafka not installed
+    KafkaTransport = None
+
 
 @pytest.mark.asyncio
 async def test_inmemory_transport_basic():
@@ -52,3 +57,12 @@ async def test_redis_transport_import():
             pass
     except ImportError:
         pytest.fail("RedisTransport should be importable")
+
+
+@pytest.mark.asyncio
+async def test_kafka_transport_import():
+    """Kafka transport should be importable and instantiable."""
+    if KafkaTransport is None:
+        pytest.skip("aiokafka not installed")
+    transport = KafkaTransport(brokers="localhost:9092", group_id="test")
+    assert transport.group_id == "test"
