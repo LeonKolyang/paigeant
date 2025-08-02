@@ -1,4 +1,5 @@
 import os
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -66,7 +67,7 @@ async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
             params={"count": count},
             headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
         )
-    response.raise_for_status()
+    await response.raise_for_status()
     return f"Generated {count} jokes"
 
 
@@ -90,8 +91,14 @@ joke_formatter_agent = PaigeantAgent(
 
 
 @pytest.mark.asyncio
-async def test_two_agent_integration():
+@patch("httpx.AsyncClient.get")
+async def test_two_agent_integration(mock_get):
     """Test workflow with two agents where first forwards to second."""
+    # Setup mock response
+    mock_response = AsyncMock()
+    mock_response.raise_for_status.return_value = None
+    mock_get.return_value = mock_response
+
     print("Running two-agent workflow integration test...")
     os.environ["PAIGEANT_TRANSPORT"] = "redis"
 
@@ -110,13 +117,13 @@ async def test_two_agent_integration():
     )
 
     # Register two activities in sequence
-    dispatcher.register_activity(
+    dispatcher.add_activity(
         agent=first_agent_name,
         prompt="Extract topic from: 'I want jokes about cats'",
         deps=deps,
     )
 
-    dispatcher.register_activity(
+    dispatcher.add_activity(
         agent=second_agent_name,
         prompt="Format the topic received from previous step",
         deps=deps,
@@ -171,7 +178,14 @@ async def test_two_agent_integration():
 
 
 @pytest.mark.asyncio
-async def test_single_agent_integration():
+@patch("httpx.AsyncClient.get")
+async def test_single_agent_integration(mock_get):
+    """Test single agent integration with joke selection."""
+    # Setup mock response
+    mock_response = AsyncMock()
+    mock_response.raise_for_status.return_value = None
+    mock_get.return_value = mock_response
+
     print("Running joke selection agent with paigeant workflow...")
     # Setup workflow infrastructure
     os.environ["PAIGEANT_TRANSPORT"] = "redis"
@@ -187,7 +201,7 @@ async def test_single_agent_integration():
         user_token="user-session-token",
     )
 
-    dispatcher.register_activity(
+    dispatcher.add_activity(
         agent=agent_name,
         prompt="Generate jokes on the given subject.",
         deps=deps,

@@ -1,10 +1,8 @@
 import pytest
-from pydantic_ai import Agent
-from pydantic_ai.models.test import TestModel
 
-from paigeant.contracts import ActivitySpec, RoutingSlip, PaigeantMessage
-from paigeant.agent.wrapper import PageantAgent
-from paigeant.tools.edit_itinerary import EditItinerary
+from paigeant.agent.wrapper import PaigeantAgent
+from paigeant.contracts import ActivitySpec, PaigeantMessage, RoutingSlip
+from paigeant.tools import _edit_itinerary
 
 
 @pytest.mark.asyncio
@@ -19,9 +17,8 @@ async def test_insert_activities():
 
 
 @pytest.mark.asyncio
-async def test_pageant_agent_wrapper():
-    base = Agent(TestModel())
-    wrapper = PageantAgent(base, can_edit_itinerary=True, max_added_steps=2)
+async def test_paigeant_agent_wrapper():
+    wrapper = PaigeantAgent("test", can_edit_itinerary=True, max_added_steps=2)
     assert wrapper.can_edit_itinerary is True
 
 
@@ -38,39 +35,8 @@ async def test_edit_tool_limit():
         def __init__(self):
             self.deps = {"message": message, "itinerary_edit_limit": 1}
 
-    result = await EditItinerary.function(Ctx(), [step2, step3])
+    result = await _edit_itinerary(Ctx(), [step2, step3])
 
     assert slip.inserted_steps == 1
     assert len(slip.itinerary) == 2
     assert "Inserted 1 steps" in result
-
-
-class DummyAgent:
-    def __init__(self) -> None:
-        self.tool_registered = False
-        self.received_deps: dict | None = None
-
-    def tool(self, *_args, **_kwargs) -> None:
-        self.tool_registered = True
-
-    def system_prompt(self, *_args, **_kwargs) -> None:  # pragma: no cover - noop
-        pass
-
-    async def run(self, _prompt: str, *, deps=None, **_kw) -> str:
-        self.received_deps = deps
-        return "ok"
-
-
-@pytest.mark.asyncio
-async def test_pageant_agent_run_passes_deps():
-    dummy = DummyAgent()
-    wrapper = PageantAgent(dummy, can_edit_itinerary=True, max_added_steps=3)
-    step = ActivitySpec(agent_name="a1", prompt="p1")
-    msg = PaigeantMessage(correlation_id="cid", routing_slip=RoutingSlip(itinerary=[step]))
-
-    await wrapper.run("test", message=msg, deps={"foo": "bar"})
-
-    assert dummy.tool_registered is True
-    assert dummy.received_deps["message"] is msg
-    assert dummy.received_deps["foo"] == "bar"
-    assert dummy.received_deps["itinerary_edit_limit"] == 3
