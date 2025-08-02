@@ -8,6 +8,7 @@ from typing import Any
 
 from pydantic_ai import Agent
 
+from paigeant.agent.wrapper import PaigeantOutput
 from paigeant.deps.deserializer import DependencyDeserializer
 
 from .contracts import (
@@ -70,9 +71,17 @@ class ActivityExecutor:
                 print(f"Failed to deserialize deps: {e}")
 
         # Add previous agent outputs to deps for easy access
-        enhanced_deps = self._add_previous_outputs_to_deps(deps, message)
+        enhanced_deps = self._add_workflow_dependencies(deps, message)
 
         result = await agent.run(activity.prompt, deps=enhanced_deps)
+
+        # Register new activities in the message routing slip
+        added_activities = (
+            result.output.added_activities
+            if hasattr(result.output, "added_activities")
+            else []
+        )
+        message.routing_slip.insert_activities(added_activities)
 
         # Store agent result in message payload for downstream agents
         if hasattr(result, "output"):
@@ -92,13 +101,14 @@ class ActivityExecutor:
         # Forward message to next activity in workflow
         await message.forward_to_next_step(self._transport)
 
-    def _add_previous_outputs_to_deps(
+    def _add_workflow_dependencies(
         self, deps: WorkflowDependencies, message: PaigeantMessage
     ) -> WorkflowDependencies:
         """Add previous agent outputs to deps for easy access by the next agent."""
 
         # If no previous outputs, return deps unchanged
         if not message.payload:
+            deps.activity_registry = message.activity_registry
             return deps
 
         # Get the latest output (last agent that ran)
@@ -108,11 +118,15 @@ class ActivityExecutor:
 
         # If deps is None, create WorkflowDependencies with latest output
         if deps is None:
-            return WorkflowDependencies(previous_output=previous_output)
+            return WorkflowDependencies(
+                previous_output=previous_output,
+                activity_registry=message.activity_registry,
+            )
 
         # If deps is already WorkflowDependencies, update it
         if isinstance(deps, WorkflowDependencies):
             deps.previous_output = previous_output
+            deps.activity_registry = message.activity_registry
             return deps
 
         # Fallback: deps exists but is not WorkflowDependencies

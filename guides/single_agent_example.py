@@ -65,7 +65,7 @@ async def main():
         user_token="user-session-token",
     )
 
-    dispatcher.register_activity(
+    dispatcher.add_activity(
         agent="joke_generation_agent",
         prompt="Generate jokes on the given subject.",
         deps=deps,

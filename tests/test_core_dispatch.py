@@ -19,7 +19,7 @@ async def test_activity_registration_and_dispatch():
 
     # Register an activity with dependencies
     deps = MockDeps(api_key="secret-key")
-    activity = dispatcher.register_activity(
+    activity = dispatcher.add_activity(
         agent="test_agent", prompt="Process test task", deps=deps
     )
 
@@ -73,8 +73,8 @@ async def test_dispatcher_topic():
     class Deps(WorkflowDependencies):
         token: str
 
-    dispatcher.register_activity(agent="agent1", prompt="p1", deps=Deps(token="x"))
-    dispatcher.register_activity(agent="agent2", prompt="p2", deps=None)
+    dispatcher.add_activity(agent="agent1", prompt="p1", deps=Deps(token="x"))
+    dispatcher.add_activity(agent="agent2", prompt="p2", deps=None)
 
     correlation_id = await dispatcher.dispatch_workflow({"foo": "bar"})
 
@@ -95,8 +95,14 @@ async def test_activity_serialization_in_registry():
     class D(WorkflowDependencies):
         value: int
 
-    dispatcher.register_activity(agent="agentA", prompt="p", deps=D(value=3))
+    dispatcher.add_activity(agent="agentA", prompt="p", deps=D(value=3))
 
-    stored = dispatcher._registered_activities[0]
+    stored = dispatcher._itinerary[0]
     assert stored.deps.type == "D"
-    assert stored.deps.data == {"previous_output": None, "user_token": None, "value": 3}
+    assert stored.deps.data == {
+        "activity_registry": None,
+        "itinerary_edit_limit": 3,
+        "previous_output": None,
+        "user_token": None,
+        "value": 3,
+    }
