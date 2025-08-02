@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import logging
 from importlib import import_module
-from typing import Any
+from typing import Any, Mapping, Optional
 
 from pydantic_ai import Agent
 
 from paigeant.deps.deserializer import DependencyDeserializer
+from .auth.obo import OboHelper
 
 from .contracts import (
     ActivitySpec,
@@ -38,12 +39,22 @@ class ActivityExecutor:
 
     async def start(self, timeout=None) -> None:
         """Start listening for workflow messages on the given topic."""
+        helper = OboHelper()
         async for raw_message, message in self._transport.subscribe(
             self._agent_name, timeout=timeout
         ):
+            claims: Optional[Mapping] = None
+            if message.obo_token:
+                try:
+                    claims = helper.verify_token(message.obo_token)
+                except Exception as e:
+                    logger.error("Invalid OBO token: %s", e)
+                    await self._transport.nack(raw_message, requeue=False)
+                    continue
+            message.obo_claims = claims
+
             activity = self.extract_activity(message)
             await self._handle_activity(activity, message)
-            # Acknowledge the message was processed
             await self._transport.ack(raw_message)
 
     async def _handle_activity(
@@ -108,11 +119,17 @@ class ActivityExecutor:
 
         # If deps is None, create WorkflowDependencies with latest output
         if deps is None:
-            return WorkflowDependencies(previous_output=previous_output)
+            return WorkflowDependencies(
+                previous_output=previous_output,
+                user_token=message.obo_token,
+                obo_claims=message.obo_claims,
+            )
 
         # If deps is already WorkflowDependencies, update it
         if isinstance(deps, WorkflowDependencies):
             deps.previous_output = previous_output
+            deps.user_token = message.obo_token
+            deps.obo_claims = message.obo_claims
             return deps
 
         # Fallback: deps exists but is not WorkflowDependencies

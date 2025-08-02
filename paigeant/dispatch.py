@@ -56,6 +56,7 @@ class WorkflowDispatcher:
         variables: Optional[Dict[str, Any]] = None,
         obo_token: Optional[str] = None,
         topic: str = "workflows",
+        drop_obo: bool = False,
     ) -> str:
         """
         Construct and dispatch a workflow.
@@ -65,6 +66,7 @@ class WorkflowDispatcher:
             variables: Optional variables to pass with the workflow
             obo_token: Optional on-behalf-of token for delegation
             topic: Topic to publish the workflow to
+            drop_obo: When True, do not include the token in the outgoing message
 
         Returns:
             correlation_id: ID to track the workflow
@@ -77,7 +79,7 @@ class WorkflowDispatcher:
         # Create the message
         message = PaigeantMessage(
             correlation_id=correlation_id,
-            obo_token=obo_token,
+            obo_token=None if drop_obo else obo_token,
             routing_slip=routing_slip,
             payload=variables or {},
         )

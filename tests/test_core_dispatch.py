@@ -99,4 +99,9 @@ async def test_activity_serialization_in_registry():
 
     stored = dispatcher._registered_activities[0]
     assert stored.deps.type == "D"
-    assert stored.deps.data == {"previous_output": None, "user_token": None, "value": 3}
+    assert stored.deps.data == {
+        "previous_output": None,
+        "user_token": None,
+        "obo_claims": None,
+        "value": 3,
+    }

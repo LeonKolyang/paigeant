@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Mapping
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 if TYPE_CHECKING:
     from .transports import BaseTransport
@@ -31,6 +31,7 @@ class WorkflowDependencies(BaseModel):
     # Example dependency fields
     user_token: Optional[str] = None  # User authentication token
     previous_output: Optional[PreviousOutput] = None  # Output from previous agent
+    obo_claims: Optional[Mapping[str, Any]] = None
 
 
 class SerializedDeps(BaseModel):
@@ -89,10 +90,17 @@ class PaigeantMessage(BaseModel):
     trace_id: Optional[str] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     obo_token: Optional[str] = None
+    obo_claims: Optional[Mapping[str, Any]] = None
     signature: Optional[str] = None
     routing_slip: RoutingSlip
     payload: Dict[str, Any] = Field(default_factory=dict)
     spec_version: str = "1.0"
+
+    @validator("obo_token")
+    def _obo_token_valid_string(cls, v):
+        if v is not None and not isinstance(v, str):
+            raise ValueError("obo_token must be a string")
+        return v
 
     def to_json(self) -> str:
         """Serialize message to JSON."""

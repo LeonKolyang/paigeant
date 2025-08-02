@@ -72,3 +72,17 @@ uv run python guides/execution_example.py joke-generator guides.dispatcher_examp
 - **Fault tolerance** - Individual activity failures don't crash workflows  
 - **Scalability** - Multiple workers can handle same activity type
 - **Observability** - Built-in correlation tracking across distributed activities
+
+## On-Behalf-Of (OBO) Tokens and Delegated Identity
+
+Paigeant workflows can propagate a user's identity end-to-end. When dispatching a
+workflow, pass `obo_token`:
+
+```python
+dispatcher.dispatch_workflow(..., obo_token=user_token)
+```
+
+Workers validate the token and expose claims via `ActivityContext.user_claims`.
+You can optionally obtain AWS credentials with `ctx.assume_web_identity(...)` for
+per-user isolation. This ensures each message carries its own delegated auth
+context in line with zero‑trust principles.

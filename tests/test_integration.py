@@ -1,9 +1,16 @@
 import os
+import importlib
 
 import httpx
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import RunContext
+
+redis_available = importlib.util.find_spec("redis") is not None
+redis_enabled = os.environ.get("REDIS_TESTS") == "1"
+pytestmark = pytest.mark.skipif(
+    not (redis_available and redis_enabled), reason="redis server not available"
+)
 
 from paigeant import (
     PaigeantAgent,

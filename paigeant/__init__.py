@@ -1,6 +1,7 @@
 """Paigeant: Durable workflow orchestration for AI agents."""
 
 from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip, WorkflowDependencies
+from .auth.obo import OboHelper, OboConfig
 from .dispatch import WorkflowDispatcher
 from .execute import ActivityExecutor
 from .integration import PaigeantAgent
@@ -16,4 +17,6 @@ __all__ = [
     "get_transport",
     "PaigeantAgent",
     "WorkflowDependencies",
+    "OboHelper",
+    "OboConfig",
 ]

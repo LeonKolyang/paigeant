@@ -587,6 +587,7 @@ The core value of the paigeant library lies in its ability to bridge the gap bet
 - **Resilience and Durability by Design**: Through the implementation of the Routing Slip and Saga patterns on top of a durable message broker, workflows become inherently "crash-proof." This provides developers with a clear and manageable pattern for handling distributed transactions and business failures.
     
 - **Production-Grade Security**: The library moves beyond transport-level security by implementing a Zero-Trust Messaging model. By embedding verifiable delegated authority (OAuth 2.0 OBO) and message integrity (JWS) directly into the message headers, it provides a robust security posture suitable for enterprise environments.
+- **Token-based Delegation**: Each `PaigeantMessage` now carries an `obo_token`. Consumers validate this before processing so identity is enforced at every hop.
     
 - **Observable Workflows**: By making distributed tracing a first-class feature with automatic context propagation, paigeant solves one of the most significant operational challenges of decentralized systems: visibility. Its design provides clear, end-to-end traceability for complex, asynchronous processes.
 
