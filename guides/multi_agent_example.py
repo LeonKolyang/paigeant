@@ -42,6 +42,7 @@ topic_extractor_agent = PaigeantAgent(
         "If no specific topic is mentioned, return 'general'."
     ),
     dispatcher=dispatcher,
+    name="topic_extractor_agent",
 )
 
 
@@ -56,6 +57,7 @@ joke_generator_agent = PaigeantAgent(
         "Return a list of joke strings."
     ),
     dispatcher=dispatcher,
+    name="joke_generator_agent",
 )
 
 # Third agent: Joke selector and formatter
@@ -68,6 +70,7 @@ joke_selector_agent = PaigeantAgent(
         "Use the jokes from the previous generator agent."
     ),
     dispatcher=dispatcher,
+    name="joke_selector_agent",
 )
 
 

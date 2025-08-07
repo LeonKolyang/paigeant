@@ -115,8 +115,7 @@ async def run_three_agent_joke_workflow():
         deps=deps,
     )
 
-    dispatcher.register_activity(
-        agent=joke_forwarder_agent,
+    joke_forwarder_agent.register_activity(
         prompt="do nothing",
         deps=deps,
     )

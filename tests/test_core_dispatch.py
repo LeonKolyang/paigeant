@@ -1,6 +1,7 @@
 """Core workflow dispatch functionality tests."""
 
 import os
+
 import pytest
 from pydantic import BaseModel
 
@@ -81,7 +82,7 @@ async def test_message_serialization():
 @pytest.mark.asyncio
 async def test_dispatcher_topic():
     """WorkflowDispatcher publishes message with trace_id and correct topic."""
-    transport = get_transport()
+    transport = get_transport("inmemory")
     dispatcher = WorkflowDispatcher()
 
     class Deps(WorkflowDependencies):

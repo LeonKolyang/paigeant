@@ -140,3 +140,14 @@ class PaigeantAgent(Agent):
 
         # Register the activity in the dispatcher
         self.dispatcher._agent_registry[self.agent_id][activity_id] = activity
+
+    def register_activity(
+        self,
+        prompt: str,
+        deps: WorkflowDependencies,
+    ) -> ActivitySpec:
+        """Register an activity without adding it to the itinerary to make it available during execution of the workflow."""
+        logger.debug(
+            f"Registering activity for agent {self.agent_id} with prompt: {prompt} and deps: {deps}"
+        )
+        return self.dispatcher.register_activity(agent=self, prompt=prompt, deps=deps)
