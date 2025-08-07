@@ -1,8 +1,4 @@
-"""Multi-agent workflow using paigeant (mjoke_generation_agent = Agent(mparison version).
-
-Compare this directly with multi_agent_example_messaging.py to see
-how to convert direct agent calls into workflow dispatch using planner agent.
-"""
+"""Single-agent workflow example using paigeant."""
 
 import asyncio
 
@@ -29,6 +25,8 @@ class JokeWorkflowDeps(WorkflowDependencies):
     user_token: str | None = None
 
 
+dispatcher = WorkflowDispatcher()
+
 joke_generation_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",  # Use test model to avoid API calls
     deps_type=JokeWorkflowDeps,
@@ -37,6 +35,8 @@ joke_generation_agent = PaigeantAgent(
         'Use the "get_jokes" tool to get jokes on the given subject, '
         "then extract each joke into a list."
     ),
+    dispatcher=dispatcher,
+    name="joke_generation_agent",
 )
 
 
@@ -57,7 +57,6 @@ async def main():
     print("Running joke selection agent with paigeant workflow...")
     # Setup workflow infrastructure
     transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
 
     http_key = HttpKey(api_key="foobar")
     deps = JokeWorkflowDeps(
@@ -65,13 +64,12 @@ async def main():
         user_token="user-session-token",
     )
 
-    dispatcher.add_activity(
-        agent="joke_generation_agent",
+    joke_generation_agent.add_to_runway(
         prompt="Generate jokes on the given subject.",
         deps=deps,
     )
 
-    correlation_id = await dispatcher.dispatch_workflow()
+    correlation_id = await dispatcher.dispatch_workflow(transport)
 
 
 if __name__ == "__main__":

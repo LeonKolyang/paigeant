@@ -14,6 +14,8 @@ from paigeant import (
 )
 from paigeant.execute import ActivityExecutor
 
+os.environ.setdefault("ANTHROPIC_API_KEY", "test")
+
 
 class HttpKey(BaseModel):
     api_key: str
@@ -26,6 +28,8 @@ class JokeWorkflowDeps(WorkflowDependencies):
     user_token: str | None = None
 
 
+dispatcher = WorkflowDispatcher()
+
 joke_selection_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
     deps_type=JokeWorkflowDeps,
@@ -33,6 +37,8 @@ joke_selection_agent = PaigeantAgent(
         "Use the `joke_factory` tool to generate some jokes on the given subject, "
         "then choose the best. You must return just a single joke."
     ),
+    dispatcher=dispatcher,
+    name="joke_selection_agent",
 )
 
 
@@ -55,6 +61,8 @@ joke_generation_agent = PaigeantAgent(
         'Use the "get_jokes" tool to get jokes on the given subject, '
         "then extract each joke into a list."
     ),
+    dispatcher=dispatcher,
+    name="joke_generation_agent",
 )
 
 
@@ -78,6 +86,8 @@ joke_processor_agent = PaigeantAgent(
     system_prompt=(
         "Process the joke request and extract the topic. Return just the topic name."
     ),
+    dispatcher=dispatcher,
+    name="joke_processor_agent",
 )
 
 joke_formatter_agent = PaigeantAgent(
@@ -87,6 +97,8 @@ joke_formatter_agent = PaigeantAgent(
         "Format the received topic into a nice joke request format. "
         "Return a formatted string like 'Please tell me a joke about [topic]'."
     ),
+    dispatcher=dispatcher,
+    name="joke_formatter_agent",
 )
 
 
@@ -108,7 +120,29 @@ async def test_two_agent_integration(mock_get):
     agent_path = "tests.test_integration"
 
     transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
+
+    # Reset dispatcher and agents for this test
+    global dispatcher, joke_processor_agent, joke_formatter_agent
+    dispatcher = WorkflowDispatcher()
+    joke_processor_agent = PaigeantAgent(
+        "anthropic:claude-3-5-sonnet-latest",
+        deps_type=JokeWorkflowDeps,
+        system_prompt=(
+            "Process the joke request and extract the topic. Return just the topic name."
+        ),
+        dispatcher=dispatcher,
+        name="joke_processor_agent",
+    )
+    joke_formatter_agent = PaigeantAgent(
+        "anthropic:claude-3-5-sonnet-latest",
+        deps_type=JokeWorkflowDeps,
+        system_prompt=(
+            "Format the received topic into a nice joke request format. "
+            "Return a formatted string like 'Please tell me a joke about [topic]'."
+        ),
+        dispatcher=dispatcher,
+        name="joke_formatter_agent",
+    )
 
     http_key = HttpKey(api_key="test-key")
     deps = JokeWorkflowDeps(
@@ -117,19 +151,26 @@ async def test_two_agent_integration(mock_get):
     )
 
     # Register two activities in sequence
-    dispatcher.add_activity(
-        agent=first_agent_name,
+    joke_processor_agent.add_to_runway(
         prompt="Extract topic from: 'I want jokes about cats'",
         deps=deps,
     )
 
-    dispatcher.add_activity(
-        agent=second_agent_name,
+    joke_formatter_agent.add_to_runway(
         prompt="Format the topic received from previous step",
         deps=deps,
     )
+    # Patch agent runs to avoid network calls
+    from types import SimpleNamespace
 
-    correlation_id = await dispatcher.dispatch_workflow()
+    joke_processor_agent.run = AsyncMock(
+        return_value=SimpleNamespace(output="cat")
+    )
+    joke_formatter_agent.run = AsyncMock(
+        return_value=SimpleNamespace(output="formatted cat")
+    )
+
+    correlation_id = await dispatcher.dispatch_workflow(transport)
     print(f"Two-agent workflow dispatched with correlation_id: {correlation_id}")
 
     # Check first agent queue
@@ -193,7 +234,20 @@ async def test_single_agent_integration(mock_get):
     agent_path = "tests.test_integration"
 
     transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
+
+    global dispatcher, joke_generation_agent
+    dispatcher = WorkflowDispatcher()
+    joke_generation_agent = PaigeantAgent(
+        "anthropic:claude-3-5-sonnet-latest",  # Use test model to avoid API calls
+        deps_type=JokeWorkflowDeps,
+        output_type=list[str],
+        system_prompt=(
+            'Use the "get_jokes" tool to get jokes on the given subject, '
+            "then extract each joke into a list."
+        ),
+        dispatcher=dispatcher,
+        name="joke_generation_agent",
+    )
 
     http_key = HttpKey(api_key="foobar")
     deps = JokeWorkflowDeps(
@@ -201,13 +255,17 @@ async def test_single_agent_integration(mock_get):
         user_token="user-session-token",
     )
 
-    dispatcher.add_activity(
-        agent=agent_name,
+    joke_generation_agent.add_to_runway(
         prompt="Generate jokes on the given subject.",
         deps=deps,
     )
+    from types import SimpleNamespace
 
-    correlation_id = await dispatcher.dispatch_workflow()
+    joke_generation_agent.run = AsyncMock(
+        return_value=SimpleNamespace(output=["joke"])
+    )
+
+    correlation_id = await dispatcher.dispatch_workflow(transport)
     print(f"Workflow dispatched with correlation_id: {correlation_id}")
 
     # Check that message was published to Redis queue
