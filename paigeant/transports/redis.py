@@ -43,7 +43,6 @@ class RedisTransport(BaseTransport[str]):
             password=self.password,
             decode_responses=True,
         )
-        # Test connection
         await self._redis.ping()
 
     async def disconnect(self) -> None:
@@ -77,13 +76,11 @@ class RedisTransport(BaseTransport[str]):
         start_time = asyncio.get_event_loop().time() if timeout else None
 
         while True:
-            # Check timeout if specified
             if timeout and start_time:
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed >= timeout:
                     break
 
-            # Blocking pop with timeout
             result = await self._redis.brpop(queue_name, timeout=1)
 
             if result:
@@ -96,7 +93,6 @@ class RedisTransport(BaseTransport[str]):
                     print(f"Failed to parse message: {e}")
                     continue
 
-            # Brief sleep to prevent busy waiting when no messages
             await asyncio.sleep(0.01)
 
     async def ack(self, raw_message: str) -> None:

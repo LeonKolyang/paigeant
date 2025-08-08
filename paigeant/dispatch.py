@@ -25,7 +25,6 @@ class WorkflowDispatcher:
     """Service responsible for dispatching new workflows."""
 
     def __init__(self) -> None:
-        # store registered activities in the order they are added
         self._itinerary: List[ActivitySpec] = []
         self._activity_registry: Dict[str, ActivitySpec] = {}
         self._agent_registry: Dict[str, PaigeantAgent] = {}
@@ -75,36 +74,26 @@ class WorkflowDispatcher:
         transport: BaseTransport,
         variables: Optional[Dict[str, Any]] = None,
         obo_token: Optional[str] = None,
-        topic: str = "workflows",
     ) -> str:
-        """
-        Construct and dispatch a workflow.
+        """Dispatch the current itinerary over ``transport``.
 
         Args:
-            activities: List of activity specifications for the workflow
-            variables: Optional variables to pass with the workflow
-            obo_token: Optional on-behalf-of token for delegation
-            topic: Topic to publish the workflow to
+            transport: Channel used to publish the workflow message.
+            variables: Optional variables to include with the workflow.
+            obo_token: Optional on-behalf-of token for delegation.
 
         Returns:
-            correlation_id: ID to track the workflow
+            Correlation identifier for tracking the workflow.
         """
         correlation_id = str(uuid.uuid4())
-
-        # Build routing slip from activities
         routing_slip = RoutingSlip(itinerary=self._itinerary)
-
-        # Create the message
         message = PaigeantMessage(
             correlation_id=correlation_id,
             obo_token=obo_token,
             routing_slip=routing_slip,
             payload=variables or {},
-            activity_registry=self._activity_registry,  # Pass the activity registry
+            activity_registry=self._activity_registry,
         )
-
-        # Publish to transport
-        topic = routing_slip.next_step().agent_name
-        await transport.publish(topic, message)
-
+        first_step = routing_slip.next_step()
+        await transport.publish(first_step.agent_name, message)
         return correlation_id
