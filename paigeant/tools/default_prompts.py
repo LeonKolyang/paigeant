@@ -2,7 +2,7 @@ from typing import Optional
 
 
 def _itinerary_editing_prompt(itinerary_edit_limit: int) -> Optional[str]:
-    """Guidance for agents allowed to modify the itinerary."""
+    """Edit the workflow itinerary."""
     return (
         "You may use the `_edit_itinerary` output_type function to insert additional steps "
         "into the workflow after executing your logic. "
