@@ -65,8 +65,6 @@ async def _dummy_run(self, *args, **kwargs):
 
 
 for _agent in [
-    joke_selection_agent,
-    joke_generation_agent,
     joke_processor_agent,
     joke_formatter_agent,
 ]:
