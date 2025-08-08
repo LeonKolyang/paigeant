@@ -30,9 +30,10 @@ jobs:
         uses: astral-sh/setup-uv@v1
         with:
           version: '0.7.22'
+      - name: Create virtual environment
+        run: uv venv
       - name: Install dependencies
-        run: |
-          uv pip install -e '.[dev,test]'
+        run: uv pip install -e '.[dev,test]'
       - name: Run tests
         env:
           ANTHROPIC_API_KEY: dummy
