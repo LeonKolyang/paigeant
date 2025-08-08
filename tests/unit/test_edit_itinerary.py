@@ -1,8 +1,13 @@
 import pytest
 
+import os
+
 from paigeant.agent.wrapper import PaigeantAgent
 from paigeant.contracts import ActivitySpec, PaigeantMessage, RoutingSlip
 from paigeant.tools import _edit_itinerary
+from paigeant.dispatch import WorkflowDispatcher
+
+os.environ.setdefault("ANTHROPIC_API_KEY", "test")
 
 
 @pytest.mark.asyncio
@@ -18,7 +23,13 @@ async def test_insert_activities():
 
 @pytest.mark.asyncio
 async def test_paigeant_agent_wrapper():
-    wrapper = PaigeantAgent("test", can_edit_itinerary=True, max_added_steps=2)
+    dispatcher = WorkflowDispatcher()
+    wrapper = PaigeantAgent(
+        "anthropic:claude-3-5-sonnet-latest",
+        dispatcher=dispatcher,
+        can_edit_itinerary=True,
+        max_added_steps=2,
+    )
     assert wrapper.can_edit_itinerary is True
 
 

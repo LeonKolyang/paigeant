@@ -30,6 +30,8 @@ class JokeWorkflowDeps(WorkflowDependencies):
     user_token: str | None = None
 
 
+dispatcher = WorkflowDispatcher()
+
 # First agent: Topic extractor
 topic_extractor_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
@@ -39,6 +41,8 @@ topic_extractor_agent = PaigeantAgent(
         "Return just the topic name (e.g., 'cats', 'programming', 'work'). "
         "If no specific topic is mentioned, return 'general'."
     ),
+    dispatcher=dispatcher,
+    name="topic_extractor_agent",
 )
 
 
@@ -52,6 +56,8 @@ joke_generator_agent = PaigeantAgent(
         "Use the workflow payload to get the topic extracted by the first agent. "
         "Return a list of joke strings."
     ),
+    dispatcher=dispatcher,
+    name="joke_generator_agent",
 )
 
 # Third agent: Joke selector and formatter
@@ -63,6 +69,8 @@ joke_selector_agent = PaigeantAgent(
         "Format it nicely with proper setup and punchline. "
         "Use the jokes from the previous generator agent."
     ),
+    dispatcher=dispatcher,
+    name="joke_selector_agent",
 )
 
 
@@ -72,35 +80,31 @@ async def run_three_agent_joke_workflow():
 
     # Setup workflow infrastructure
     transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
 
     # Setup dependencies
     http_key = HttpKey(api_key="joke-api-key-12345")
     deps = JokeWorkflowDeps(http_key=http_key, user_token="joke-session-token")
 
     # Register first activity: Topic extraction
-    dispatcher.add_activity(
-        agent="topic_extractor_agent",
+    topic_extractor_agent.add_to_runway(
         prompt="Extract joke topic from: 'Tell me a funny joke about programming!'",
         deps=deps,
     )
 
     # Register second activity: Joke generation
-    dispatcher.add_activity(
-        agent="joke_generator_agent",
+    joke_generator_agent.add_to_runway(
         prompt="Generate 3 jokes based on a given topics",
         deps=deps,
     )
 
     # Register third activity: Joke selection and formatting
-    dispatcher.add_activity(
-        agent="joke_selector_agent",
+    joke_selector_agent.add_to_runway(
         prompt="Select and format the best joke from the given list",
         deps=deps,
     )
 
     # Dispatch the workflow
-    correlation_id = await dispatcher.dispatch_workflow()
+    correlation_id = await dispatcher.dispatch_workflow(transport)
     print(f"Three-agent joke workflow dispatched!")
     print(f"Correlation ID: {correlation_id}")
     print(f"Workflow will process through all three agents in sequence")

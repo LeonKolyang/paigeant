@@ -1,8 +1,8 @@
-"""Single-agent workflow example using paigeant."""
-
-import asyncio
+import os
+from unittest.mock import AsyncMock, patch
 
 import httpx
+import pytest
 from pydantic import BaseModel
 from pydantic_ai import RunContext
 
@@ -12,6 +12,10 @@ from paigeant import (
     WorkflowDispatcher,
     get_transport,
 )
+from paigeant.execute import ActivityExecutor
+
+os.environ.setdefault("ANTHROPIC_API_KEY", "test")
+os.environ.setdefault("PAIGEANT_TRANSPORT", "redis")
 
 
 class HttpKey(BaseModel):
@@ -49,13 +53,25 @@ async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
             params={"count": count},
             headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
         )
-    response.raise_for_status()
+    await response.raise_for_status()
     return f"Generated {count} jokes"
 
 
-async def main():
+@pytest.mark.asyncio
+@patch("httpx.AsyncClient.get")
+async def test_single_agent_integration(mock_get):
+    """Test single agent integration with joke selection."""
+    # Setup mock response
+    mock_response = AsyncMock()
+    mock_response.raise_for_status.return_value = None
+    mock_get.return_value = mock_response
+
     print("Running joke selection agent with paigeant workflow...")
     # Setup workflow infrastructure
+    os.environ["PAIGEANT_TRANSPORT"] = "redis"
+    agent_name = "joke_generation_agent"
+    agent_path = "tests.integration.test_single_agent"
+
     transport = get_transport()
 
     http_key = HttpKey(api_key="foobar")
@@ -70,7 +86,27 @@ async def main():
     )
 
     correlation_id = await dispatcher.dispatch_workflow(transport)
+    print(f"Workflow dispatched with correlation_id: {correlation_id}")
 
+    # Check that message was published to Redis queue
+    queue_name = f"paigeant:{agent_name}"
+    queue_length_before = await transport._redis.llen(queue_name)
+    print(f"Queue length before execution: {queue_length_before}")
+    assert queue_length_before > 0, "Message should be in queue after dispatch"
 
-if __name__ == "__main__":
-    asyncio.run(main())
+    transport = get_transport()
+    executor = ActivityExecutor(transport, agent_name=agent_name, agent_path=agent_path)
+
+    # Start executor
+    await executor.start(timeout=5)
+
+    # Verify message was processed from queue
+    queue_length_after = await transport._redis.llen(queue_name)
+    print(f"Queue length after execution: {queue_length_after}")
+
+    # Validate execution
+    assert (
+        queue_length_after < queue_length_before
+    ), "Queue should be empty after message processing"
+    print("Integration test passed - message was processed from queue")
+    print("All validations passed!")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar
 
 from pydantic import BaseModel, Field
@@ -9,7 +10,7 @@ from pydantic_ai import Agent, RunContext, _system_prompt
 from paigeant.contracts import ActivitySpec, WorkflowDependencies
 
 from ..constants import DEFAULT_ITINERARY_EDIT_LIMIT
-from ..dispatch import WorkflowDispatcher
+from ..dispatch import WorkflowDispatcher, find_variable_name
 from ..tools import _edit_itinerary, _extract_previous_output, _itinerary_editing_prompt
 
 logger = logging.getLogger(__name__)
@@ -76,19 +77,21 @@ def create_edit_itinerary_tool(output_type: Type[T]) -> Callable:
 class PaigeantAgent(Agent):
     """Base class for paigeant agents with workflow dispatch capability."""
 
-    dispatcher: WorkflowDispatcher
-
     def __init__(
         self,
         *args,
+        dispatcher: WorkflowDispatcher,
         can_edit_itinerary: bool = False,
         max_added_steps: int = DEFAULT_ITINERARY_EDIT_LIMIT,
         **kwargs,
     ):
+        self.agent_id = f"agent-{uuid.uuid4()}"
+
         logger.debug(
-            f"Initializing PaigeantAgent with can_edit_itinerary={can_edit_itinerary}, max_added_steps={max_added_steps}"
+            f"Initializing PaigeantAgent with can_edit_itinerary={can_edit_itinerary}, max_added_steps={max_added_steps}, uuid={self.agent_id}"
         )
 
+        self.dispatcher = dispatcher
         self.can_edit_itinerary = can_edit_itinerary
         self.max_added_steps = max_added_steps
 
@@ -113,3 +116,38 @@ class PaigeantAgent(Agent):
             self._system_prompts = existing_prompts + (edit_prompt,)
 
             self.tool(_edit_itinerary)
+
+        self.dispatcher._agent_registry[self.agent_id] = {}
+
+    def add_to_runway(
+        self,
+        prompt: str,
+        deps: WorkflowDependencies,
+    ):
+        """Add this agent to the workflow itinerary with the given prompt and dependencies."""
+        logger.debug(
+            f"Adding agent {self.agent_id} to runway with prompt: {prompt} and deps: {deps}"
+        )
+
+        # Create activity spec for this agent
+        activity = self.dispatcher.add_activity(
+            agent=self,
+            prompt=prompt,
+            deps=deps,
+        )
+
+        activity_id = f"activity-{uuid.uuid4()}"
+
+        # Register the activity in the dispatcher
+        self.dispatcher._agent_registry[self.agent_id][activity_id] = activity
+
+    def register_activity(
+        self,
+        prompt: str,
+        deps: WorkflowDependencies,
+    ) -> ActivitySpec:
+        """Register an activity without adding it to the itinerary to make it available during execution of the workflow."""
+        logger.debug(
+            f"Registering activity for agent {self.agent_id} with prompt: {prompt} and deps: {deps}"
+        )
+        return self.dispatcher.register_activity(agent=self, prompt=prompt, deps=deps)

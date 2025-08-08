@@ -14,6 +14,9 @@ from paigeant import (
 )
 from paigeant.execute import ActivityExecutor
 
+os.environ.setdefault("ANTHROPIC_API_KEY", "test")
+os.environ.setdefault("PAIGEANT_TRANSPORT", "redis")
+
 
 class HttpKey(BaseModel):
     api_key: str
@@ -26,49 +29,7 @@ class JokeWorkflowDeps(WorkflowDependencies):
     user_token: str | None = None
 
 
-joke_selection_agent = PaigeantAgent(
-    "anthropic:claude-3-5-sonnet-latest",
-    deps_type=JokeWorkflowDeps,
-    system_prompt=(
-        "Use the `joke_factory` tool to generate some jokes on the given subject, "
-        "then choose the best. You must return just a single joke."
-    ),
-)
-
-
-@joke_selection_agent.tool
-async def joke_factory(ctx: RunContext[JokeWorkflowDeps], count: int) -> list[str]:
-    r = await joke_generation_agent.run(
-        f"Please generate {count} jokes.",
-        deps=ctx.deps,
-        usage=ctx.usage,
-    )
-
-    return r.output
-
-
-joke_generation_agent = PaigeantAgent(
-    "anthropic:claude-3-5-sonnet-latest",  # Use test model to avoid API calls
-    deps_type=JokeWorkflowDeps,
-    output_type=list[str],
-    system_prompt=(
-        'Use the "get_jokes" tool to get jokes on the given subject, '
-        "then extract each joke into a list."
-    ),
-)
-
-
-@joke_generation_agent.tool
-async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
-    async with httpx.AsyncClient() as client:
-        print(f"Using deps: {ctx.deps}")
-        response = await client.get(
-            "https://httpbin.org/json",  # Using working endpoint
-            params={"count": count},
-            headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
-        )
-    await response.raise_for_status()
-    return f"Generated {count} jokes"
+dispatcher = WorkflowDispatcher()
 
 
 # Two-agent workflow for joke processing
@@ -78,6 +39,8 @@ joke_processor_agent = PaigeantAgent(
     system_prompt=(
         "Process the joke request and extract the topic. Return just the topic name."
     ),
+    dispatcher=dispatcher,
+    name="joke_processor_agent",
 )
 
 joke_formatter_agent = PaigeantAgent(
@@ -87,6 +50,8 @@ joke_formatter_agent = PaigeantAgent(
         "Format the received topic into a nice joke request format. "
         "Return a formatted string like 'Please tell me a joke about [topic]'."
     ),
+    dispatcher=dispatcher,
+    name="joke_formatter_agent",
 )
 
 
@@ -105,10 +70,9 @@ async def test_two_agent_integration(mock_get):
     # Agent definitions
     first_agent_name = "joke_processor_agent"
     second_agent_name = "joke_formatter_agent"
-    agent_path = "tests.integration.test_integration"
+    agent_path = "tests.integration.test_multi_agent"
 
     transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
 
     http_key = HttpKey(api_key="test-key")
     deps = JokeWorkflowDeps(
@@ -117,19 +81,17 @@ async def test_two_agent_integration(mock_get):
     )
 
     # Register two activities in sequence
-    dispatcher.add_activity(
-        agent=first_agent_name,
+    joke_processor_agent.add_to_runway(
         prompt="Extract topic from: 'I want jokes about cats'",
         deps=deps,
     )
 
-    dispatcher.add_activity(
-        agent=second_agent_name,
+    joke_formatter_agent.add_to_runway(
         prompt="Format the topic received from previous step",
         deps=deps,
     )
 
-    correlation_id = await dispatcher.dispatch_workflow()
+    correlation_id = await dispatcher.dispatch_workflow(transport)
     print(f"Two-agent workflow dispatched with correlation_id: {correlation_id}")
 
     # Check first agent queue
@@ -175,60 +137,3 @@ async def test_two_agent_integration(mock_get):
 
     print("Two-agent integration test passed - both agents executed in sequence")
     print("Message forwarding validation successful!")
-
-
-@pytest.mark.asyncio
-@patch("httpx.AsyncClient.get")
-async def test_single_agent_integration(mock_get):
-    """Test single agent integration with joke selection."""
-    # Setup mock response
-    mock_response = AsyncMock()
-    mock_response.raise_for_status.return_value = None
-    mock_get.return_value = mock_response
-
-    print("Running joke selection agent with paigeant workflow...")
-    # Setup workflow infrastructure
-    os.environ["PAIGEANT_TRANSPORT"] = "redis"
-    agent_name = "joke_generation_agent"
-    agent_path = "tests.integration.test_integration"
-
-    transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
-
-    http_key = HttpKey(api_key="foobar")
-    deps = JokeWorkflowDeps(
-        http_key=http_key,
-        user_token="user-session-token",
-    )
-
-    dispatcher.add_activity(
-        agent=agent_name,
-        prompt="Generate jokes on the given subject.",
-        deps=deps,
-    )
-
-    correlation_id = await dispatcher.dispatch_workflow()
-    print(f"Workflow dispatched with correlation_id: {correlation_id}")
-
-    # Check that message was published to Redis queue
-    queue_name = f"paigeant:{agent_name}"
-    queue_length_before = await transport._redis.llen(queue_name)
-    print(f"Queue length before execution: {queue_length_before}")
-    assert queue_length_before > 0, "Message should be in queue after dispatch"
-
-    transport = get_transport()
-    executor = ActivityExecutor(transport, agent_name=agent_name, agent_path=agent_path)
-
-    # Start executor
-    await executor.start(timeout=5)
-
-    # Verify message was processed from queue
-    queue_length_after = await transport._redis.llen(queue_name)
-    print(f"Queue length after execution: {queue_length_after}")
-
-    # Validate execution
-    assert (
-        queue_length_after < queue_length_before
-    ), "Queue should be empty after message processing"
-    print("Integration test passed - message was processed from queue")
-    print("All validations passed!")

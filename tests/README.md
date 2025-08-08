@@ -20,20 +20,24 @@ Simple, focused tests for the paigeant workflow dispatch library.
 # Basic functionality test
 uv run python -c "
 import asyncio
-from paigeant import ActivitySpec, WorkflowDispatcher, get_transport
+from paigeant import PaigeantAgent, WorkflowDependencies, WorkflowDispatcher, get_transport
+
+class Deps(WorkflowDependencies):
+    pass
 
 async def test():
     transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
-    activities = [ActivitySpec(name='validate'), ActivitySpec(name='process'), ActivitySpec(name='notify')]
-    correlation_id = await dispatcher.dispatch_workflow(activities)
+    dispatcher = WorkflowDispatcher()
+    agent = PaigeantAgent('model', dispatcher=dispatcher, name='validate', deps_type=Deps)
+    agent.add_to_runway(prompt='process task', deps=Deps())
+    correlation_id = await dispatcher.dispatch_workflow(transport)
     print(f'Test passed: {correlation_id}')
 
 asyncio.run(test())
 "
 
 # Run examples
-uv run python examples/simple_agent_guide.py
+uv run python guides/single_agent_example.py
 ```
 
 ## Test Structure
