@@ -84,8 +84,19 @@ tasks:
   # Development and testing tasks
   test:
     desc: "Run tests"
+    deps:
+      - test:unit
+      - test:integration
+
+  test:unit:
+    desc: "Run unit tests"
     cmds:
-      - "{{.PYTHON_CMD}} -m pytest tests/ -v"
+      - "{{.PYTHON_CMD}} -m pytest tests/unit/ -v"
+
+  test:integration:
+    desc: "Run integration tests"
+    cmds:
+      - "{{.PYTHON_CMD}} -m pytest tests/integration/ -v"
 
   redis-test:
     desc: "Test if Redis server is running and reachable"

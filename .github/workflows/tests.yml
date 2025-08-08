@@ -34,7 +34,7 @@ jobs:
         run: uv venv
       - name: Install dependencies
         run: uv pip install -e '.[dev,test]'
-      - name: Run tests
-        env:
-          ANTHROPIC_API_KEY: dummy
-        run: task test
+      - name: Run unit tests
+        run: task test:unit
+      - name: Run integration tests
+        run: task test:integration
