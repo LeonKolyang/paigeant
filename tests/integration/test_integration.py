@@ -105,7 +105,7 @@ async def test_two_agent_integration(mock_get):
     # Agent definitions
     first_agent_name = "joke_processor_agent"
     second_agent_name = "joke_formatter_agent"
-    agent_path = "tests.test_integration"
+    agent_path = "tests.integration.test_integration"
 
     transport = get_transport()
     dispatcher = WorkflowDispatcher(transport)
@@ -190,7 +190,7 @@ async def test_single_agent_integration(mock_get):
     # Setup workflow infrastructure
     os.environ["PAIGEANT_TRANSPORT"] = "redis"
     agent_name = "joke_generation_agent"
-    agent_path = "tests.test_integration"
+    agent_path = "tests.integration.test_integration"
 
     transport = get_transport()
     dispatcher = WorkflowDispatcher(transport)
