@@ -41,8 +41,15 @@ topic_extractor_agent = PaigeantAgent(
     ),
 )
 
+# Second dynamically added agent: Joke forwarder
+joke_forwarder_agent = PaigeantAgent(
+    "anthropic:claude-3-5-sonnet-latest",
+    deps_type=JokeWorkflowDeps,
+    output_type=str,
+    system_prompt=("Forward the jokes to the next agent. "),
+)
 
-# Second agent: Joke generator
+# Third agent: Joke generator
 joke_generator_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
     deps_type=JokeWorkflowDeps,
@@ -52,9 +59,11 @@ joke_generator_agent = PaigeantAgent(
         "Use the workflow payload to get the topic extracted by the first agent. "
         "Return a list of joke strings."
     ),
+    can_edit_itinerary=True,
 )
 
-# Third agent: Joke selector and formatter
+
+# Fourth agent: Joke selector and formatter
 joke_selector_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
     deps_type=JokeWorkflowDeps,
@@ -81,14 +90,14 @@ async def run_three_agent_joke_workflow():
     # Register first activity: Topic extraction
     dispatcher.add_activity(
         agent="topic_extractor_agent",
-        prompt="Extract joke topic from: 'Tell me a funny joke about programming!'",
+        prompt="Extract joke topic from: 'Tell me a funny joke about programming!  Add a step to forward the jokes to the joke_forwarder_agent.'",
         deps=deps,
     )
 
     # Register second activity: Joke generation
     dispatcher.add_activity(
         agent="joke_generator_agent",
-        prompt="Generate 3 jokes based on a given topics",
+        prompt="Generate 3 jokes based on a given topics.",
         deps=deps,
     )
 
@@ -97,6 +106,13 @@ async def run_three_agent_joke_workflow():
         agent="joke_selector_agent",
         prompt="Select and format the best joke from the given list",
         deps=deps,
+    )
+
+    dispatcher.register_activity(
+        agent=joke_forwarder_agent,
+        prompt="do nothing",
+        deps=deps,
+        agent_name="joke_forwarder_agent",
     )
 
     # Dispatch the workflow

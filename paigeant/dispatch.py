@@ -3,20 +3,22 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from paigeant.agent.wrapper import PaigeantAgent
 
 from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip, SerializedDeps
 from .deps.serializer import DependencySerializer
 from .transports import BaseTransport
 
 
-def find_variable_name(obj):
-    """Find the variable name(s) that reference this object"""
-    names = []
+def find_variable_name(obj: Any) -> str:
+    """Best-effort lookup of the variable name referencing ``obj``."""
     for name, value in globals().items():
         if value is obj:
-            names.append(name)
-    return names
+            return name
+    return getattr(obj, "__name__", str(obj))
 
 
 class WorkflowDispatcher:
@@ -24,27 +26,49 @@ class WorkflowDispatcher:
 
     def __init__(self, transport: BaseTransport) -> None:
         self._transport = transport
-        self.activities: List[ActivitySpec] = []
+        # store registered activities in the order they are added
+        self._itinerary: List[ActivitySpec] = []
+        self._activity_registry: Dict[str, ActivitySpec] = {}
 
-    def register_activity(
-        self, agent: Any, prompt: str, deps: Any, agent_name: Optional[str] = None
+    def _create_activity(
+        self,
+        agent: Any,
+        prompt: str,
+        deps: Any,
+        agent_name: Optional[str] = None,
     ) -> ActivitySpec:
-        """Register an activity with the dispatcher."""
-        agent_name = agent_name or find_variable_name(agent)
-
+        """Create an ActivitySpec from agent, prompt, and dependencies."""
+        agent_name = (
+            agent_name or getattr(agent, "name", None) or find_variable_name(agent)
+        )
         serialized, deps_type, deps_module = DependencySerializer.serialize(deps)
 
-        activity = ActivitySpec(
-            agent_name=agent,
+        return ActivitySpec(
+            agent_name=agent_name,
             prompt=prompt,
-            deps=SerializedDeps(
-                data=serialized,
-                type=deps_type,
-                module=deps_module,
-            ),
+            deps=SerializedDeps(data=serialized, type=deps_type, module=deps_module),
         )
-        self.activities.append(activity)
+
+    def add_activity(
+        self,
+        agent: PaigeantAgent,
+        prompt: str,
+        deps: Any,
+        agent_name: Optional[str] = None,
+        register_only: bool = False,
+    ) -> ActivitySpec:
+        """Add an activity to the workflow itinerary and registry."""
+        activity = self._create_activity(agent, prompt, deps, agent_name)
+
+        self._activity_registry[activity.agent_name] = activity
+        if not register_only:
+            self._itinerary.append(activity)
+
         return activity
+
+    def register_activity(self, *args, **kwargs) -> ActivitySpec:
+        """Register an activity without adding to itinerary."""
+        return self.add_activity(*args, register_only=True, **kwargs)
 
     async def dispatch_workflow(
         self,
@@ -67,7 +91,7 @@ class WorkflowDispatcher:
         correlation_id = str(uuid.uuid4())
 
         # Build routing slip from activities
-        routing_slip = RoutingSlip(itinerary=self.activities)
+        routing_slip = RoutingSlip(itinerary=self._itinerary)
 
         # Create the message
         message = PaigeantMessage(
@@ -75,6 +99,7 @@ class WorkflowDispatcher:
             obo_token=obo_token,
             routing_slip=routing_slip,
             payload=variables or {},
+            activity_registry=self._activity_registry,  # Pass the activity registry
         )
 
         # Publish to transport

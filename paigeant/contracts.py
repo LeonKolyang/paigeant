@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from .constants import DEFAULT_ITINERARY_EDIT_LIMIT
+
 if TYPE_CHECKING:
     from .transports import BaseTransport
 
@@ -20,17 +22,6 @@ class PreviousOutput(BaseModel):
 
     agent_name: str
     output: Any  # Can be any type, depending on the agent's output
-
-
-class WorkflowDependencies(BaseModel):
-    """Base class for workflow dependencies.
-
-    This can be extended to include any additional data needed by agents.
-    """
-
-    # Example dependency fields
-    user_token: Optional[str] = None  # User authentication token
-    previous_output: Optional[PreviousOutput] = None  # Output from previous agent
 
 
 class SerializedDeps(BaseModel):
@@ -48,12 +39,30 @@ class ActivitySpec(BaseModel):
     arguments: Dict[str, Any] = Field(default_factory=dict)
 
 
+class WorkflowDependencies(BaseModel):
+    """Base class for workflow dependencies.
+
+    This can be extended to include any additional data needed by agents.
+    """
+
+    # Example dependency fields
+    user_token: Optional[str] = None  # User authentication token
+    previous_output: Optional[PreviousOutput] = None  # Output from previous agent
+    itinerary_edit_limit: Optional[int] = (
+        DEFAULT_ITINERARY_EDIT_LIMIT  # Max steps user can add to itinerary
+    )
+    activity_registry: Optional[Dict[str, ActivitySpec]] = (
+        None  # Current workflow message
+    )
+
+
 class RoutingSlip(BaseModel):
     """Describes remaining, executed and compensating activities."""
 
     itinerary: List[ActivitySpec] = Field(default_factory=list)
     executed: List[ActivitySpec] = Field(default_factory=list)
     compensations: List[ActivitySpec] = Field(default_factory=list)
+    inserted_steps: int = 0
 
     def next_step(self) -> Optional[ActivitySpec]:
         """Get the next step to execute."""
@@ -74,6 +83,19 @@ class RoutingSlip(BaseModel):
             completed_step = self.itinerary.pop(0)
             self.executed.append(completed_step)
 
+    def insert_activities(self, new_steps: List[ActivitySpec], limit: int = 3) -> int:
+        """Insert new activities immediately after the current step."""
+        remaining = max(0, limit - self.inserted_steps)
+        allowed = new_steps[:remaining]
+        if not allowed:
+            return 0
+        next_index = 1  # insert after current step
+        self.itinerary = (
+            self.itinerary[:next_index] + allowed + self.itinerary[next_index:]
+        )
+        self.inserted_steps += len(allowed)
+        return len(allowed)
+
     def previous_step(self) -> Optional[ActivitySpec]:
         """Get the last executed step."""
         return self.executed[-1] if self.executed else None
@@ -93,6 +115,7 @@ class PaigeantMessage(BaseModel):
     routing_slip: RoutingSlip
     payload: Dict[str, Any] = Field(default_factory=dict)
     spec_version: str = "1.0"
+    activity_registry: Optional[Dict[str, ActivitySpec]] = None
 
     def to_json(self) -> str:
         """Serialize message to JSON."""
