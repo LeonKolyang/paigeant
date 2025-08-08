@@ -31,10 +31,10 @@ class ActivityExecutor:
         self._transport = transport
         self._agent_name = agent_name
         self._agent_path = agent_path
-        self.executed_activities = []  # Track successfully executed activities
+        self.executed_activities = []
 
     def extract_activity(self, message: PaigeantMessage) -> ActivitySpec:
-        """Extract routing slip from the message."""
+        """Return the next activity from the message's routing slip."""
         return message.routing_slip.next_step()
 
     async def start(self, timeout=None) -> None:
@@ -44,7 +44,6 @@ class ActivityExecutor:
         ):
             activity = self.extract_activity(message)
             await self._handle_activity(activity, message)
-            # Acknowledge the message was processed
             await self._transport.ack(raw_message)
 
     async def _handle_activity(
@@ -57,11 +56,10 @@ class ActivityExecutor:
         agent_module = import_module(self._agent_path)
         agent: Agent = getattr(agent_module, self._agent_name, None)
 
-        # Deserialize deps
-        deps: Any = None
+        raw_deps: Any = None
         if activity.deps and activity.deps.data:
             try:
-                deps = DependencyDeserializer.deserialize(
+                raw_deps = DependencyDeserializer.deserialize(
                     deps_data=activity.deps.data,
                     deps_type=activity.deps.type,
                     deps_module=activity.deps.module,
@@ -70,27 +68,21 @@ class ActivityExecutor:
             except Exception as e:
                 print(f"Failed to deserialize deps: {e}")
 
-        # Add previous agent outputs to deps for easy access
-        enhanced_deps = self._add_workflow_dependencies(deps, message)
+        full_deps = self._add_workflow_dependencies(raw_deps, message)
+        result = await agent.run(activity.prompt, deps=full_deps)
 
-        result = await agent.run(activity.prompt, deps=enhanced_deps)
-
-        # Register new activities in the message routing slip
-        added_activities = (
+        added = (
             result.output.added_activities
             if hasattr(result.output, "added_activities")
             else []
         )
-        message.routing_slip.insert_activities(added_activities)
+        message.routing_slip.insert_activities(added)
 
-        # Store agent result in message payload for downstream agents
         if hasattr(result, "output"):
             message.payload[self._agent_name] = result.output
         elif result is not None:
-            # Fallback for agents that don't return RunResult objects
             message.payload[self._agent_name] = str(result)
         else:
-            # Store indication that agent completed successfully but returned None
             message.payload[self._agent_name] = None
 
         logger.info(
@@ -98,39 +90,34 @@ class ActivityExecutor:
         )
         print(result)
 
-        # Forward message to next activity in workflow
         await message.forward_to_next_step(self._transport)
 
     def _add_workflow_dependencies(
-        self, deps: WorkflowDependencies, message: PaigeantMessage
-    ) -> WorkflowDependencies:
-        """Add previous agent outputs to deps for easy access by the next agent."""
+        self, deps: WorkflowDependencies | None, message: PaigeantMessage
+    ) -> WorkflowDependencies | None:
+        """Combine deserialized dependencies with workflow context."""
 
-        # If no previous outputs, return deps unchanged
         if not message.payload:
-            deps.activity_registry = message.activity_registry
+            if isinstance(deps, WorkflowDependencies):
+                deps.activity_registry = message.activity_registry
             return deps
 
-        # Get the latest output (last agent that ran)
         latest_agent = message.routing_slip.previous_step().agent_name
-        latest_output = message.payload[latest_agent]
-        previous_output = PreviousOutput(agent_name=latest_agent, output=latest_output)
+        previous_output = PreviousOutput(
+            agent_name=latest_agent, output=message.payload[latest_agent]
+        )
 
-        # If deps is None, create WorkflowDependencies with latest output
         if deps is None:
             return WorkflowDependencies(
                 previous_output=previous_output,
                 activity_registry=message.activity_registry,
             )
 
-        # If deps is already WorkflowDependencies, update it
         if isinstance(deps, WorkflowDependencies):
             deps.previous_output = previous_output
             deps.activity_registry = message.activity_registry
             return deps
 
-        # Fallback: deps exists but is not WorkflowDependencies
-        # This shouldn't happen in normal operation, but handle it gracefully
         logger.warning(
             f"Agent {self._agent_name} has non-WorkflowDependencies deps: {type(deps)}. "
             "Previous outputs will not be available."

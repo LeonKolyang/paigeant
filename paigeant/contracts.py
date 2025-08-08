@@ -18,16 +18,16 @@ logger = logging.getLogger(__name__)
 
 
 class PreviousOutput(BaseModel):
-    """Represents output from a previous agent in the workflow."""
+    """Output produced by a prior agent in the workflow."""
 
     agent_name: str
-    output: Any  # Can be any type, depending on the agent's output
+    output: Any
 
 
 class SerializedDeps(BaseModel):
-    data: Optional[dict]  # serialized values (or None if no deps)
-    type: Optional[str]  # class name, e.g. "MyDeps"
-    module: Optional[str]  # module path, e.g. "my_project.agents.deps"
+    data: Optional[dict] = Field(default=None, description="Serialized values")
+    type: Optional[str] = Field(default=None, description="Class name")
+    module: Optional[str] = Field(default=None, description="Module path")
 
 
 class ActivitySpec(BaseModel):
@@ -35,25 +35,17 @@ class ActivitySpec(BaseModel):
 
     agent_name: str
     prompt: str
-    deps: Optional[SerializedDeps] = None  # Additional dependencies for the activity
+    deps: Optional[SerializedDeps] = None
     arguments: Dict[str, Any] = Field(default_factory=dict)
 
 
 class WorkflowDependencies(BaseModel):
-    """Base class for workflow dependencies.
+    """Container for data shared across workflow activities."""
 
-    This can be extended to include any additional data needed by agents.
-    """
-
-    # Example dependency fields
-    user_token: Optional[str] = None  # User authentication token
-    previous_output: Optional[PreviousOutput] = None  # Output from previous agent
-    itinerary_edit_limit: Optional[int] = (
-        DEFAULT_ITINERARY_EDIT_LIMIT  # Max steps user can add to itinerary
-    )
-    activity_registry: Optional[Dict[str, ActivitySpec]] = (
-        None  # Current workflow message
-    )
+    user_token: Optional[str] = None
+    previous_output: Optional[PreviousOutput] = None
+    itinerary_edit_limit: Optional[int] = DEFAULT_ITINERARY_EDIT_LIMIT
+    activity_registry: Optional[Dict[str, ActivitySpec]] = None
 
 
 class RoutingSlip(BaseModel):
@@ -89,9 +81,9 @@ class RoutingSlip(BaseModel):
         allowed = new_steps[:remaining]
         if not allowed:
             return 0
-        next_index = 1  # insert after current step
+        insert_pos = 1
         self.itinerary = (
-            self.itinerary[:next_index] + allowed + self.itinerary[next_index:]
+            self.itinerary[:insert_pos] + allowed + self.itinerary[insert_pos:]
         )
         self.inserted_steps += len(allowed)
         return len(allowed)
@@ -140,7 +132,6 @@ class PaigeantMessage(BaseModel):
             )
             return
 
-        # Mark current step complete before attempting to forward
         self.routing_slip.mark_complete(current)
         logger.info(
             f"Completed activity {current.agent_name} for correlation_id={self.correlation_id}"
@@ -159,7 +150,7 @@ class PaigeantMessage(BaseModel):
         except Exception as e:
             logger.error(
                 f"Failed to forward message to {next_activity.agent_name} "
-                f"for correlation_id={self.correlation_id}: {e}"
+                f"for correlation_id={self.correlation_id}: {e}. "
+                "Current activity already marked complete; workflow state may be inconsistent."
             )
-            # Note: Current activity is already marked complete, so workflow state may be inconsistent
             raise

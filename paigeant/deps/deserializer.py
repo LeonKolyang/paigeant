@@ -1,5 +1,3 @@
-# file: paigeant/deps/deserializer.py
-
 import importlib
 from typing import Any
 
@@ -26,7 +24,6 @@ class DependencyDeserializer:
         if deps_data is None:
             return None
 
-        # If the dependency is just a string (e.g., a token or reference ID)
         if isinstance(deps_data, str) and deps_type == "str":
             return deps_data
 

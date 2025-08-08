@@ -35,7 +35,6 @@ class InMemoryTransport(BaseTransport[Tuple[str, PaigeantMessage]]):
         start_time = asyncio.get_event_loop().time() if timeout else None
 
         while True:
-            # Check timeout if specified
             if timeout and start_time:
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed >= timeout:
@@ -47,7 +46,6 @@ class InMemoryTransport(BaseTransport[Tuple[str, PaigeantMessage]]):
                     yield raw_message, raw_message[1]
                     continue
 
-            # Brief sleep to prevent busy waiting
             await asyncio.sleep(0.1)
 
     async def ack(self, raw_message: Tuple[str, PaigeantMessage]) -> None:
