@@ -95,6 +95,8 @@ tasks:
 
   test:integration:
     desc: "Run integration tests"
+    deps:
+      - redis-test
     cmds:
       - "{{.PYTHON_CMD}} -m pytest tests/integration/ -v"
 
