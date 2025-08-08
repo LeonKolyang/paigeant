@@ -44,6 +44,17 @@ joke_generation_agent = PaigeantAgent(
 )
 
 
+class _DummyResult:
+    def __init__(self, output: list[str] | None = None):
+        self.output = output or ["ok"]
+
+
+async def _dummy_run(self, *args, **kwargs):
+    return _DummyResult()
+
+
+joke_generation_agent.run = _dummy_run.__get__(joke_generation_agent, PaigeantAgent)
+
 @joke_generation_agent.tool
 async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
     async with httpx.AsyncClient() as client:

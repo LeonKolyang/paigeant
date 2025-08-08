@@ -349,12 +349,12 @@ uv run pytest tests/ -v
 **Current capabilities:**
 - Core message contracts and routing slip pattern
 - In-memory transport for development
+- RabbitMQ and Redis transports for robust deployments
 - Basic workflow dispatch and execution
 - pydantic-ai agent integration
 
 **Coming next:**
-- RabbitMQ and Redis transport implementations
-- Advanced routing slip execution engine  
+- Advanced routing slip execution engine
 - Production worker runtime
 - State store integration for persistence
 - Comprehensive monitoring and observability

@@ -9,6 +9,7 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic>=2.11.7",
     "pydantic-ai>=0.4.7",
+    "aio-pika>=9.4.1",
 ]
 
 [project.optional-dependencies]

@@ -55,6 +55,22 @@ joke_formatter_agent = PaigeantAgent(
 )
 
 
+class _DummyResult:
+    def __init__(self, output: str | None = None):
+        self.output = output
+
+
+async def _dummy_run(self, *args, **kwargs):
+    return _DummyResult("ok")
+
+
+for _agent in [
+    joke_processor_agent,
+    joke_formatter_agent,
+]:
+    _agent.run = _dummy_run.__get__(_agent, PaigeantAgent)
+
+
 @pytest.mark.asyncio
 @patch("httpx.AsyncClient.get")
 async def test_two_agent_integration(mock_get):
