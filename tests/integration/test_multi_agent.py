@@ -70,11 +70,7 @@ async def test_two_agent_integration(mock_get):
     # Agent definitions
     first_agent_name = "joke_processor_agent"
     second_agent_name = "joke_formatter_agent"
-<<<<<<<< HEAD:tests/integration/test_multi_agent.py
     agent_path = "tests.integration.test_multi_agent"
-========
-    agent_path = "tests.integration.test_integration"
->>>>>>>> main:tests/integration/test_integration.py
 
     transport = get_transport()
 
@@ -141,63 +137,3 @@ async def test_two_agent_integration(mock_get):
 
     print("Two-agent integration test passed - both agents executed in sequence")
     print("Message forwarding validation successful!")
-<<<<<<<< HEAD:tests/integration/test_multi_agent.py
-========
-
-
-@pytest.mark.asyncio
-@patch("httpx.AsyncClient.get")
-async def test_single_agent_integration(mock_get):
-    """Test single agent integration with joke selection."""
-    # Setup mock response
-    mock_response = AsyncMock()
-    mock_response.raise_for_status.return_value = None
-    mock_get.return_value = mock_response
-
-    print("Running joke selection agent with paigeant workflow...")
-    # Setup workflow infrastructure
-    os.environ["PAIGEANT_TRANSPORT"] = "redis"
-    agent_name = "joke_generation_agent"
-    agent_path = "tests.integration.test_integration"
-
-    transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
-
-    http_key = HttpKey(api_key="foobar")
-    deps = JokeWorkflowDeps(
-        http_key=http_key,
-        user_token="user-session-token",
-    )
-
-    dispatcher.add_activity(
-        agent=agent_name,
-        prompt="Generate jokes on the given subject.",
-        deps=deps,
-    )
-
-    correlation_id = await dispatcher.dispatch_workflow()
-    print(f"Workflow dispatched with correlation_id: {correlation_id}")
-
-    # Check that message was published to Redis queue
-    queue_name = f"paigeant:{agent_name}"
-    queue_length_before = await transport._redis.llen(queue_name)
-    print(f"Queue length before execution: {queue_length_before}")
-    assert queue_length_before > 0, "Message should be in queue after dispatch"
-
-    transport = get_transport()
-    executor = ActivityExecutor(transport, agent_name=agent_name, agent_path=agent_path)
-
-    # Start executor
-    await executor.start(timeout=5)
-
-    # Verify message was processed from queue
-    queue_length_after = await transport._redis.llen(queue_name)
-    print(f"Queue length after execution: {queue_length_after}")
-
-    # Validate execution
-    assert (
-        queue_length_after < queue_length_before
-    ), "Queue should be empty after message processing"
-    print("Integration test passed - message was processed from queue")
-    print("All validations passed!")
->>>>>>>> main:tests/integration/test_integration.py
