@@ -1,10 +1,19 @@
 """Core workflow dispatch functionality tests."""
 
+import os
+
 import pytest
 from pydantic import BaseModel
 
-from paigeant import WorkflowDependencies, WorkflowDispatcher, get_transport
+from paigeant import (
+    PaigeantAgent,
+    WorkflowDependencies,
+    WorkflowDispatcher,
+    get_transport,
+)
 from paigeant.contracts import ActivitySpec, SerializedDeps
+
+os.environ.setdefault("ANTHROPIC_API_KEY", "test")
 
 
 class MockDeps(WorkflowDependencies):
@@ -15,22 +24,28 @@ class MockDeps(WorkflowDependencies):
 async def test_activity_registration_and_dispatch():
     """Test registering activities and dispatching workflow."""
     transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
+    dispatcher = WorkflowDispatcher()
+
+    test_agent = PaigeantAgent(
+        "anthropic:claude-3-5-sonnet-latest",
+        dispatcher=dispatcher,
+        name="test_agent",
+        deps_type=MockDeps,
+    )
 
     # Register an activity with dependencies
     deps = MockDeps(api_key="secret-key")
-    activity = dispatcher.register_activity(
-        agent="test_agent", prompt="Process test task", deps=deps
-    )
+    test_agent.add_to_runway(prompt="Process test task", deps=deps)
 
     # Verify activity was created correctly
+    activity = dispatcher._itinerary[0]
     assert activity.agent_name == "test_agent"
     assert activity.prompt == "Process test task"
     assert activity.deps is not None
     assert activity.deps.type == "MockDeps"
 
     # Dispatch workflow
-    correlation_id = await dispatcher.dispatch_workflow()
+    correlation_id = await dispatcher.dispatch_workflow(transport)
     assert correlation_id is not None
     assert len(correlation_id) > 0
 
@@ -67,16 +82,28 @@ async def test_message_serialization():
 @pytest.mark.asyncio
 async def test_dispatcher_topic():
     """WorkflowDispatcher publishes message with trace_id and correct topic."""
-    transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
+    transport = get_transport("inmemory")
+    dispatcher = WorkflowDispatcher()
 
     class Deps(WorkflowDependencies):
         token: str
 
-    dispatcher.register_activity(agent="agent1", prompt="p1", deps=Deps(token="x"))
-    dispatcher.register_activity(agent="agent2", prompt="p2", deps=None)
+    agent1 = PaigeantAgent(
+        "anthropic:claude-3-5-sonnet-latest",
+        dispatcher=dispatcher,
+        name="agent1",
+        deps_type=Deps,
+    )
+    agent2 = PaigeantAgent(
+        "anthropic:claude-3-5-sonnet-latest",
+        dispatcher=dispatcher,
+        name="agent2",
+    )
 
-    correlation_id = await dispatcher.dispatch_workflow({"foo": "bar"})
+    agent1.add_to_runway(prompt="p1", deps=Deps(token="x"))
+    agent2.add_to_runway(prompt="p2", deps=None)
+
+    correlation_id = await dispatcher.dispatch_workflow(transport, {"foo": "bar"})
 
     # First queue should contain the published message
     queue = transport._queues["agent1"]
@@ -89,14 +116,26 @@ async def test_dispatcher_topic():
 @pytest.mark.asyncio
 async def test_activity_serialization_in_registry():
     """Registered activities should store serialized deps."""
-    transport = get_transport()
-    dispatcher = WorkflowDispatcher(transport)
+    dispatcher = WorkflowDispatcher()
 
     class D(WorkflowDependencies):
         value: int
 
-    dispatcher.register_activity(agent="agentA", prompt="p", deps=D(value=3))
+    agentA = PaigeantAgent(
+        "anthropic:claude-3-5-sonnet-latest",
+        dispatcher=dispatcher,
+        name="agentA",
+        deps_type=D,
+    )
 
-    stored = dispatcher._registered_activities[0]
+    agentA.add_to_runway(prompt="p", deps=D(value=3))
+
+    stored = dispatcher._itinerary[0]
     assert stored.deps.type == "D"
-    assert stored.deps.data == {"previous_output": None, "user_token": None, "value": 3}
+    assert stored.deps.data == {
+        "activity_registry": None,
+        "itinerary_edit_limit": 3,
+        "previous_output": None,
+        "user_token": None,
+        "value": 3,
+    }

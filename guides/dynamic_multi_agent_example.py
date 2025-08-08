@@ -32,6 +32,7 @@ class JokeWorkflowDeps(WorkflowDependencies):
 
 dispatcher = WorkflowDispatcher()
 
+
 # First agent: Topic extractor
 topic_extractor_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
@@ -45,8 +46,17 @@ topic_extractor_agent = PaigeantAgent(
     name="topic_extractor_agent",
 )
 
+# Second dynamically added agent: Joke forwarder
+joke_forwarder_agent = PaigeantAgent(
+    "anthropic:claude-3-5-sonnet-latest",
+    deps_type=JokeWorkflowDeps,
+    output_type=str,
+    system_prompt=("Forward the jokes to the next agent. "),
+    dispatcher=dispatcher,
+    name="joke_forwarder_agent",
+)
 
-# Second agent: Joke generator
+# Third agent: Joke generator
 joke_generator_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
     deps_type=JokeWorkflowDeps,
@@ -56,11 +66,13 @@ joke_generator_agent = PaigeantAgent(
         "Use the workflow payload to get the topic extracted by the first agent. "
         "Return a list of joke strings."
     ),
+    can_edit_itinerary=True,
     dispatcher=dispatcher,
     name="joke_generator_agent",
 )
 
-# Third agent: Joke selector and formatter
+
+# Fourth agent: Joke selector and formatter
 joke_selector_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
     deps_type=JokeWorkflowDeps,
@@ -87,19 +99,24 @@ async def run_three_agent_joke_workflow():
 
     # Register first activity: Topic extraction
     topic_extractor_agent.add_to_runway(
-        prompt="Extract joke topic from: 'Tell me a funny joke about programming!'",
+        prompt="Extract joke topic from: 'Tell me a funny joke about programming!  Add a step to forward the jokes to the joke_forwarder_agent.'",
         deps=deps,
     )
 
     # Register second activity: Joke generation
     joke_generator_agent.add_to_runway(
-        prompt="Generate 3 jokes based on a given topics",
+        prompt="Generate 3 jokes based on a given topics.",
         deps=deps,
     )
 
     # Register third activity: Joke selection and formatting
     joke_selector_agent.add_to_runway(
         prompt="Select and format the best joke from the given list",
+        deps=deps,
+    )
+
+    joke_forwarder_agent.register_activity(
+        prompt="do nothing",
         deps=deps,
     )
 

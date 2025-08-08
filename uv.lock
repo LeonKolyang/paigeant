@@ -314,6 +314,20 @@ wheels = [
 ]
 
 [[package]]
+name = "fasta2a"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "pydantic" },
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5d/2a/f9d212026bdc74068ef9aef493a2b37ce0d4201694d158180759e07489b5/fasta2a-0.5.0.tar.gz", hash = "sha256:0bca45f675fb3354ae6cd0e6dd0be1d504ee135b8e802b4058fb3485521f61e9", size = 1436123, upload-time = "2025-07-10T16:31:01.502Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c5/08/d25f303013a04e2bec68ed97c4f4f85ad9c178fc582e8e4345147fd141fb/fasta2a-0.5.0-py3-none-any.whl", hash = "sha256:806f4bbd6cd2858ca631d47e75f3bbf4746ff0752ccca38edbfe85930c4ffbe2", size = 25198, upload-time = "2025-07-10T16:30:59.938Z" },
+]
+
+[[package]]
 name = "fastavro"
 version = "1.11.1"
 source = { registry = "https://pypi.org/simple" }
@@ -911,6 +925,7 @@ name = "paigeant"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "fasta2a" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-ai" },
@@ -936,6 +951,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fasta2a", specifier = ">=0.5.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
     { name = "ipython", marker = "extra == 'dev'", specifier = ">=9.4.0" },

@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import os
+from typing import Optional
 
 from .base import BaseTransport
 from .inmemory import InMemoryTransport
 from .rabbitmq import RabbitMQTransport
 
 
-def get_transport() -> BaseTransport:
+def get_transport(backend: Optional[str] = None) -> BaseTransport:
     """Factory function to get the configured transport."""
-    backend = os.getenv("PAIGEANT_TRANSPORT", "inmemory").lower()
+    backend = (
+        os.getenv("PAIGEANT_TRANSPORT", "inmemory").lower()
+        if not backend
+        else backend.lower()
+    )
 
     if backend == "inmemory":
         return InMemoryTransport()
