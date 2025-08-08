@@ -29,7 +29,7 @@ tasks:
     env:
       PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
     cmds:
-      - "{{.PYTHON_CMD}} -m guides.execution_example 'joke_generation_agent' 'guides.single_agent_example'"
+      - "{{.PYTHON_CMD}} -m paigeant.cli execute 'joke_generation_agent' 'guides.single_agent_example'"
 
   # Multi Agent Example Tasks
   multi-agent:
@@ -48,7 +48,7 @@ tasks:
     env:
       PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
     cmds:
-      - "{{.PYTHON_CMD}} -m guides.execution_example 'topic_extractor_agent' 'guides.multi_agent_example'"
+      - "{{.PYTHON_CMD}} -m paigeant.cli execute 'topic_extractor_agent' 'guides.multi_agent_example'"
 
   multi-agent-worker:joke-generator:
     desc: "Run joke generator agent worker for multi-agent example"
@@ -57,7 +57,7 @@ tasks:
     env:
       PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
     cmds:
-      - "{{.PYTHON_CMD}} -m guides.execution_example 'joke_generator_agent' 'guides.multi_agent_example'"
+      - "{{.PYTHON_CMD}} -m paigeant.cli execute 'joke_generator_agent' 'guides.multi_agent_example'"
 
   multi-agent-worker:joke-selector:
     desc: "Run joke selector agent worker for multi-agent example"
@@ -66,7 +66,7 @@ tasks:
     env:
       PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
     cmds:
-      - "{{.PYTHON_CMD}} -m guides.execution_example 'joke_selector_agent' 'guides.multi_agent_example'"
+      - "{{.PYTHON_CMD}} -m paigeant.cli execute 'joke_selector_agent' 'guides.multi_agent_example'"
 
   # Convenience tasks for running all workers
   single-agent-workers:
