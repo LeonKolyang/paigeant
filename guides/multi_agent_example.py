@@ -125,13 +125,13 @@ Workflow dispatched with correlation ID: {correlation_id}
 To run the workers for each agent, start these in separate terminals:
 
 1. Topic extractor worker:
-uv run python guides/execution_example.py topic_extractor_agent guides.three_agent_workflow_example
+uv run paigeant execute topic_extractor_agent guides.three_agent_workflow_example
 
 2. Joke generator worker:
-uv run python guides/execution_example.py joke_generator_agent guides.three_agent_workflow_example
+uv run paigeant execute joke_generator_agent guides.three_agent_workflow_example
 
 3. Joke selector worker:
-uv run python guides/execution_example.py joke_selector_agent guides.three_agent_workflow_example
+uv run paigeant execute joke_selector_agent guides.three_agent_workflow_example
 """
     )
 
