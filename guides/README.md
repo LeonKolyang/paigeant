@@ -1,6 +1,6 @@
 # Paigeant Workflow Guides
 
-Examples demonstrating distributed workflow patterns with `paigeant`.
+Examples demonstrating distributed workflow patterns with `paigeant`. These guides highlight how `WorkflowDispatcher` builds workflows and how `PaigeantAgent` defines activities that an `ActivityExecutor` later consumes.
 
 ## Example scripts
 
@@ -13,10 +13,9 @@ Runs three agents in order, passing outputs through queued messages.
 ### `dynamic_multi_agent_example.py` — dynamic itinerary editing
 Adds steps at runtime using an agent with `can_edit_itinerary=True`.
 
-### `execution_example.py` — running workers
-Starts an `ActivityExecutor` process that consumes activities from the transport.
-
 ## Running the examples
+
+Each script uses `WorkflowDispatcher` to enqueue work and `PaigeantAgent` to define activities. To process queued messages, run an `ActivityExecutor` using the CLI.
 
 ```bash
 # Dispatch a single-agent workflow
@@ -24,7 +23,7 @@ uv run python guides/single_agent_example.py
 
 # Start a worker for multi-agent examples (requires Redis)
 export PAIGEANT_TRANSPORT=redis
-uv run python guides/execution_example.py joke_generator_agent guides.multi_agent_example
+uv run paigeant execute joke_generator_agent guides.multi_agent_example
 ```
 
 ## Key benefits
