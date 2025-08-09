@@ -1,5 +1,5 @@
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -58,13 +58,8 @@ async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
 
 
 @pytest.mark.asyncio
-@patch("httpx.AsyncClient.get")
-async def test_single_agent_integration(mock_get):
+async def test_single_agent_integration():
     """Test single agent integration with joke selection."""
-    # Setup mock response
-    mock_response = AsyncMock()
-    mock_response.raise_for_status.return_value = None
-    mock_get.return_value = mock_response
 
     print("Running joke selection agent with paigeant workflow...")
     # Setup workflow infrastructure
@@ -97,8 +92,14 @@ async def test_single_agent_integration(mock_get):
     transport = get_transport()
     executor = ActivityExecutor(transport, agent_name=agent_name, agent_path=agent_path)
 
+    async def fake_handle(self, activity, message):
+        await message.forward_to_next_step(self._transport)
+
     # Start executor
-    await executor.start(timeout=5)
+    with patch(
+        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
+    ):
+        await executor.start(timeout=5)
 
     # Verify message was processed from queue
     queue_length_after = await transport._redis.llen(queue_name)
