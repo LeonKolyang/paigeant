@@ -65,7 +65,6 @@ async def test_single_agent_integration():
     # Setup workflow infrastructure
     os.environ["PAIGEANT_TRANSPORT"] = "redis"
     agent_name = "joke_generation_agent"
-    agent_path = "tests.integration.test_single_agent"
 
     transport = get_transport()
 
@@ -90,7 +89,7 @@ async def test_single_agent_integration():
     assert queue_length_before > 0, "Message should be in queue after dispatch"
 
     transport = get_transport()
-    executor = ActivityExecutor(transport, agent_name=agent_name, agent_path=agent_path)
+    executor = ActivityExecutor(transport, agent_name=agent_name)
 
     async def fake_handle(self, activity, message):
         await message.forward_to_next_step(self._transport)
