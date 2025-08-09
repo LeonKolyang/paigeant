@@ -12,8 +12,8 @@ Shows how to use `WorkflowDispatcher` with pydantic-ai agents to create distribu
 - Cross-agent dependency injection
 - Workflow coordination via dispatcher
 
-### `execution_example.py` - Activity Executor Pattern  
-Demonstrates how to run `ActivityExecutor` workers for handling workflow activities.
+### `paigeant execute` - Activity Executor Pattern
+Demonstrates how to run `ActivityExecutor` workers for handling workflow activities via the CLI.
 
 **Features:**
 - Redis transport for cross-process messaging
@@ -63,7 +63,7 @@ uv run python guides/dispatcher_example.py
 
 # Run activity executor (requires Redis)
 export PAIGEANT_TRANSPORT=redis
-uv run python guides/execution_example.py joke-generator guides.dispatcher_example
+uv run paigeant execute joke-generator guides.dispatcher_example
 ```
 
 ## Key Benefits

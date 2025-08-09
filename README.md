@@ -26,8 +26,8 @@ Resilient: Agent A → Queue → Agent B → Queue → Agent C → Queue → Age
 Paigeant is built on three foundational architectural principles:
 
 1. **Asynchronous-First Communication** - All inter-agent communication is async by default, eliminating blocking calls and cascade failures
-2. **💾 Durable Execution** - Workflows survive crashes because state lives in messages, not memory
-3. **🔒 Zero-Trust Messaging** - Built-in security with OAuth delegation and cryptographic message integrity
+2. **Durable Execution** - Workflows survive crashes because state lives in messages, not memory
+3. **Zero-Trust Messaging** - Built-in security with OAuth delegation and cryptographic message integrity
 
 ## What You Can Build
 
@@ -81,73 +81,68 @@ Sophisticated AI analysis at each step, with human handoff capabilities.
 
 ## Quick Start
 
+The following example shows how to run a single agent workflow and explains the core concepts along the way.
+
 ### 1. Install Paigeant
 
 ```bash
 uv add paigeant
 ```
 
-### 2. Define Your Workflow
+### 2. Define an agent and workflow
 
-Think of your business process as independent steps:
-
-```python
-from paigeant import ActivitySpec
-
-onboarding_steps = [
-    ActivitySpec(name="validate-customer-data"),
-    ActivitySpec(name="create-customer-account"),
-    ActivitySpec(name="setup-payment-method"),
-    ActivitySpec(name="send-welcome-email"),
-]
-```
-
-### 3. Dispatch the Workflow
+Create `guides/quickstart_demo.py`:
 
 ```python
 import asyncio
-from paigeant import WorkflowDispatcher, get_transport
+from paigeant import PaigeantAgent, WorkflowDependencies, WorkflowDispatcher, get_transport
+
+class DemoDeps(WorkflowDependencies):
+    """Per-request context shared across activities."""
+    pass
+
+dispatcher = WorkflowDispatcher()
+
+echo_agent = PaigeantAgent(
+    "anthropic:claude-3-5-sonnet-latest",
+    system_prompt="Repeat the user's input.",
+    dispatcher=dispatcher,
+    name="echo_agent",
+)
 
 async def main():
     transport = get_transport()
-    await transport.connect()
-    
-    dispatcher = WorkflowDispatcher(transport)
-    
-    correlation_id = await dispatcher.dispatch_workflow(
-        activities=onboarding_steps,
-        variables={
-            "customer_email": "new.customer@example.com",
-            "subscription_tier": "premium"
-        }
-    )
-    
-    print(f"Workflow dispatched: {correlation_id}")
-    await transport.disconnect()
+    # Register work for the agent
+    echo_agent.add_to_runway(prompt="hello from paigeant", deps=DemoDeps())
+    # Send the workflow to the transport
+    correlation_id = await dispatcher.dispatch_workflow(transport)
+    print("dispatched workflow", correlation_id)
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-### 4. Build Workers for Each Step
+`PaigeantAgent` wraps an LLM with its own instructions. Calling `add_to_runway` creates an `ActivitySpec` describing a unit of work for that agent. The `WorkflowDispatcher` collects these activities and sends them through the chosen transport.
 
-Each activity gets handled by a dedicated service:
+### 3. Run a worker
 
-```python
-# Worker service handling "validate-customer-data" messages
-async def handle_validation(message):
-    customer_email = message.payload["customer_email"]
-    
-    # Use your existing agents/logic here
-    is_valid = await customer_validator_agent.validate(customer_email)
-    
-    if is_valid:
-        # Mark complete and continue workflow
-        message.routing_slip.mark_complete("validate-customer-data")
-        await transport.publish("workflows", message)
-    else:
-        # Handle validation failure with custom logic
-        await handle_validation_error(message)
+Workers execute activities from the transport. Start one for the echo agent:
+
+```bash
+uv run paigeant execute echo_agent guides.quickstart_demo
 ```
+
+The `paigeant execute` command loads the agent and waits for messages addressed to it.
+
+### 4. Dispatch the workflow
+
+In another terminal run:
+
+```bash
+uv run python guides/quickstart_demo.py
+```
+
+The worker prints the agent's response and the workflow completes. This pattern scales to multiple agents and transports without changing your workflow code.
 
 ## AI Agent Integration
 
