@@ -1,19 +1,42 @@
 import os
 import sys
 import asyncio
+import multiprocessing
 from pathlib import Path
-from typer.testing import CliRunner
-from unittest.mock import patch
 
 os.environ.setdefault("ANTHROPIC_API_KEY", "test")
 os.environ["PAIGEANT_TRANSPORT"] = "redis"
 
-from paigeant.cli import app
-from paigeant import get_transport
-from paigeant.execute import ActivityExecutor
-
 sys.path.append(str(Path(__file__).resolve().parents[2]))
+
+from paigeant import get_transport
 from guides.dynamic_multi_agent_example import run_three_agent_joke_workflow
+
+
+def _run_agent_process(agent_name: str, agent_path: str, executed):
+    from typer.testing import CliRunner
+    from unittest.mock import patch
+    from paigeant.cli import app
+    from paigeant.execute import ActivityExecutor
+
+    async def fake_handle(self, activity, message):
+        executed.append(activity.agent_name)
+        if activity.agent_name == "joke_generator_agent":
+            forwarder = message.activity_registry["joke_forwarder_agent"]
+            message.routing_slip.insert_activities([forwarder])
+        await message.forward_to_next_step(self._transport)
+
+    original_start = ActivityExecutor.start
+
+    async def start_with_timeout(self, timeout=None):
+        await original_start(self, timeout=0.2)
+
+    runner = CliRunner()
+    with patch(
+        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
+    ), patch("paigeant.cli.ActivityExecutor.start", new=start_with_timeout):
+        result = runner.invoke(app, [agent_name, agent_path])
+        assert result.exit_code == 0
 
 
 def _redis_len(queue: str) -> int:
@@ -48,31 +71,19 @@ def test_dynamic_agent_cli_execution():
         "joke_selector_agent",
     ]
 
-    executed = []
-
-    async def fake_handle(self, activity, message):
-        executed.append(activity.agent_name)
-        if activity.agent_name == "joke_generator_agent":
-            forwarder = message.activity_registry["joke_forwarder_agent"]
-            message.routing_slip.insert_activities([forwarder])
-        await message.forward_to_next_step(self._transport)
-
-    original_start = ActivityExecutor.start
-
-    async def start_with_timeout(self, timeout=None):
-        await original_start(self, timeout=0.2)
-
-    runner = CliRunner()
-    with patch(
-        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
-    ), patch("paigeant.cli.ActivityExecutor.start", new=start_with_timeout):
+    with multiprocessing.Manager() as manager:
+        executed = manager.list()
         for name in agent_names:
             queue = f"paigeant:{name}"
             before = _redis_len(queue)
             assert before > 0
-            result = runner.invoke(app, [name, agent_path])
-            assert result.exit_code == 0
+            proc = multiprocessing.Process(
+                target=_run_agent_process, args=(name, agent_path, executed)
+            )
+            proc.start()
+            proc.join()
+            assert proc.exitcode == 0
             after = _redis_len(queue)
             assert after < before
 
-    assert executed == agent_names
+        assert list(executed) == agent_names
