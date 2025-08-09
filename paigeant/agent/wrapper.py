@@ -15,6 +15,8 @@ from ..tools import _edit_itinerary, _extract_previous_output, _itinerary_editin
 
 logger = logging.getLogger(__name__)
 
+AGENT_REGISTRY: Dict[str, Agent] = {}
+
 T = TypeVar("T")
 
 
@@ -113,6 +115,8 @@ class PaigeantAgent(Agent):
             self.tool(_edit_itinerary)
 
         self.dispatcher._agent_registry[self.agent_id] = {}
+        if getattr(self, "name", None):
+            AGENT_REGISTRY[self.name] = self
 
     def add_to_runway(
         self,

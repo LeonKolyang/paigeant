@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import logging
-from importlib import import_module
 from typing import Any
 
 from pydantic_ai import Agent
 
-from paigeant.agent.wrapper import PaigeantOutput
+from paigeant.agent.wrapper import AGENT_REGISTRY
 from paigeant.deps.deserializer import DependencyDeserializer
 
 from .contracts import (
@@ -25,12 +24,9 @@ logger = logging.getLogger(__name__)
 class ActivityExecutor:
     """Executes workflow activities by listening to transport messages."""
 
-    def __init__(
-        self, transport: BaseTransport, agent_name: str, agent_path: str
-    ) -> None:
+    def __init__(self, transport: BaseTransport, agent_name: str) -> None:
         self._transport = transport
         self._agent_name = agent_name
-        self._agent_path = agent_path
         self.executed_activities = []
 
     def extract_activity(self, message: PaigeantMessage) -> ActivitySpec:
@@ -51,10 +47,11 @@ class ActivityExecutor:
     ) -> None:
         """Handle incoming workflow activity."""
         print(f"Received activity: {activity}")
-        print(f"Agent path: {self._agent_path}, Agent name: {self._agent_name}")
+        print(f"Agent name: {self._agent_name}")
 
-        agent_module = import_module(self._agent_path)
-        agent: Agent = getattr(agent_module, self._agent_name, None)
+        agent: Agent | None = AGENT_REGISTRY.get(self._agent_name)
+        if agent is None:
+            raise ValueError(f"Agent {self._agent_name} not found in registry")
 
         raw_deps: Any = None
         if activity.deps and activity.deps.data:
@@ -63,7 +60,7 @@ class ActivityExecutor:
                     deps_data=activity.deps.data,
                     deps_type=activity.deps.type,
                     deps_module=activity.deps.module,
-                    fallback_module=self._agent_path,
+                    fallback_module=agent.__module__,
                 )
             except Exception as e:
                 print(f"Failed to deserialize deps: {e}")
