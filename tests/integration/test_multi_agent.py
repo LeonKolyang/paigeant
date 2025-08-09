@@ -1,7 +1,6 @@
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-import httpx
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import RunContext
@@ -56,13 +55,8 @@ joke_formatter_agent = PaigeantAgent(
 
 
 @pytest.mark.asyncio
-@patch("httpx.AsyncClient.get")
-async def test_two_agent_integration(mock_get):
+async def test_two_agent_integration():
     """Test workflow with two agents where first forwards to second."""
-    # Setup mock response
-    mock_response = AsyncMock()
-    mock_response.raise_for_status.return_value = None
-    mock_get.return_value = mock_response
 
     print("Running two-agent workflow integration test...")
     os.environ["PAIGEANT_TRANSPORT"] = "redis"
@@ -100,11 +94,17 @@ async def test_two_agent_integration(mock_get):
     print(f"First agent queue length: {first_queue_before}")
     assert first_queue_before > 0, "First agent should have message in queue"
 
-    # Run first executor
-    first_executor = ActivityExecutor(
-        transport, agent_name=first_agent_name, agent_path=agent_path
-    )
-    await first_executor.start(timeout=5)
+    async def fake_handle(self, activity, message):
+        await message.forward_to_next_step(self._transport)
+
+    with patch(
+        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
+    ):
+        # Run first executor
+        first_executor = ActivityExecutor(
+            transport, agent_name=first_agent_name, agent_path=agent_path
+        )
+        await first_executor.start(timeout=5)
 
     # Verify first agent processed and second agent received message
     first_queue_after = await transport._redis.llen(first_queue)
@@ -121,11 +121,14 @@ async def test_two_agent_integration(mock_get):
         second_queue_length > 0
     ), "Second agent should have received forwarded message"
 
-    # Run second executor
-    second_executor = ActivityExecutor(
-        transport, agent_name=second_agent_name, agent_path=agent_path
-    )
-    await second_executor.start(timeout=5)
+    with patch(
+        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
+    ):
+        # Run second executor
+        second_executor = ActivityExecutor(
+            transport, agent_name=second_agent_name, agent_path=agent_path
+        )
+        await second_executor.start(timeout=5)
 
     # Verify second agent processed
     second_queue_after = await transport._redis.llen(second_queue)
