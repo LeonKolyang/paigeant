@@ -18,12 +18,12 @@ def main() -> None:
 
 
 @app.command()
-def execute(agent_name: str, agent_path: str) -> None:
+def execute(agent_name: str, agent_path: str, timeout: float = 30.0) -> None:
     """Run an ActivityExecutor for the given agent."""
     import_module(agent_path)
     transport = get_transport()
     executor = ActivityExecutor(transport, agent_name=agent_name)
-    asyncio.run(executor.start())
+    asyncio.run(executor.start(timeout=timeout))
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
