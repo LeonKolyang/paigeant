@@ -50,7 +50,7 @@ dispatcher = WorkflowDispatcher()
 agent = PaigeantAgent("anthropic:claude-3-5", dispatcher=dispatcher, deps_type=WorkflowDependencies)
 agent.add_to_runway(prompt="do work", deps=WorkflowDependencies())
 
-transport = get_transport()  # in-memory by default or set PAIGEANT_TRANSPORT=redis
+transport = get_transport()  # in-memory by default, configurable via PAIGEANT_TRANSPORT or config.yaml
 correlation_id = await dispatcher.dispatch_workflow(transport)
 ```
 
