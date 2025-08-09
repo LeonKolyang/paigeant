@@ -11,12 +11,10 @@ app = typer.Typer(help="CLI for Paigeant workflows")
 
 
 @app.command()
-def execute(agent_name: str, agent_path: str) -> None:
+def execute(agent_name: str) -> None:
     """Run an ActivityExecutor for the given agent."""
     transport = get_transport()
-    executor = ActivityExecutor(
-        transport, agent_name=agent_name, agent_path=agent_path
-    )
+    executor = ActivityExecutor(transport, agent_name=agent_name)
     asyncio.run(executor.start())
 
 

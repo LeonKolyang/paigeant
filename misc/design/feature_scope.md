@@ -117,25 +117,14 @@ Let's begin with **Section 1: Routing Slip-Based Agent Forwarding** and generate
      async def _handle_activity(self, activity: ActivitySpec) -> None:
          """Handle incoming workflow activity."""
          print(f"Received activity: {activity}")
-         print(f"Agent path: {self._agent_path}, Agent name: {self._agent_name}")
-         agent_module = import_module(self._agent_path)
-         agent: Agent = getattr(agent_module, self._agent_name, None)
--        http_key = HttpKey(api_key="foobar")
--        result = await agent.run(activity.prompt, deps=http_key)
-+        deps = DependencyDeserializer.deserialize(
-+            activity.deps.get("data"),
-+            activity.deps.get("type"),
-+            activity.deps.get("module"),
-+        )
-+        result = await agent.run(activity.prompt, deps=deps)
-
-         print(result)
-+
-+        # Forward message to next step
-+        if self._transport and activity.parent_message:
-+            updated_msg = activity.parent_message.advance()
-+            if updated_msg:
-+                await self._transport.publish(updated_msg.next_topic(), updated_msg)
+         print(f"Agent name: {self._agent_name}")
+        agent: Agent = AGENT_REGISTRY.get(self._agent_name)
+        deps = DependencyDeserializer.deserialize(
+            activity.deps.get("data"),
+            activity.deps.get("type"),
+            activity.deps.get("module"),
+        )
+        result = await agent.run(activity.prompt, deps=deps)
 ```
 
 ---

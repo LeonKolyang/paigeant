@@ -37,7 +37,7 @@ agent.add_to_runway(prompt="do work", deps=WorkflowDependencies())
 transport = get_transport()          # inmemory or redis
 correlation_id = await dispatcher.dispatch_workflow(transport)
 
-executor = ActivityExecutor(transport, "agent", "module.path")
+executor = ActivityExecutor(transport, "agent")
 await executor.start()
 ```
 

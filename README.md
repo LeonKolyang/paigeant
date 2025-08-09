@@ -35,7 +35,7 @@ Run a worker:
 ```python
 from paigeant import ActivityExecutor
 
-executor = ActivityExecutor(transport, "agent", "my.module")
+executor = ActivityExecutor(transport, "agent")
 await executor.start()
 ```
 

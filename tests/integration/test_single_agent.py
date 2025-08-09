@@ -70,7 +70,6 @@ async def test_single_agent_integration(mock_get):
     # Setup workflow infrastructure
     os.environ["PAIGEANT_TRANSPORT"] = "redis"
     agent_name = "joke_generation_agent"
-    agent_path = "tests.integration.test_single_agent"
 
     transport = get_transport()
 
@@ -95,7 +94,7 @@ async def test_single_agent_integration(mock_get):
     assert queue_length_before > 0, "Message should be in queue after dispatch"
 
     transport = get_transport()
-    executor = ActivityExecutor(transport, agent_name=agent_name, agent_path=agent_path)
+    executor = ActivityExecutor(transport, agent_name=agent_name)
 
     # Start executor
     await executor.start(timeout=5)

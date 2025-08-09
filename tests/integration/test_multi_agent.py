@@ -70,7 +70,6 @@ async def test_two_agent_integration(mock_get):
     # Agent definitions
     first_agent_name = "joke_processor_agent"
     second_agent_name = "joke_formatter_agent"
-    agent_path = "tests.integration.test_multi_agent"
 
     transport = get_transport()
 
@@ -101,9 +100,7 @@ async def test_two_agent_integration(mock_get):
     assert first_queue_before > 0, "First agent should have message in queue"
 
     # Run first executor
-    first_executor = ActivityExecutor(
-        transport, agent_name=first_agent_name, agent_path=agent_path
-    )
+    first_executor = ActivityExecutor(transport, agent_name=first_agent_name)
     await first_executor.start(timeout=5)
 
     # Verify first agent processed and second agent received message
@@ -122,9 +119,7 @@ async def test_two_agent_integration(mock_get):
     ), "Second agent should have received forwarded message"
 
     # Run second executor
-    second_executor = ActivityExecutor(
-        transport, agent_name=second_agent_name, agent_path=agent_path
-    )
+    second_executor = ActivityExecutor(transport, agent_name=second_agent_name)
     await second_executor.start(timeout=5)
 
     # Verify second agent processed

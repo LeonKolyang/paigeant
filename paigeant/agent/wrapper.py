@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+# Registry of all instantiated Paigeant agents keyed by name
+AGENT_REGISTRY: Dict[str, "PaigeantAgent"] = {}
+
 
 class PaigeantOutput(BaseModel, Generic[T]):
     """Base class for paigeant agent outputs."""
@@ -97,6 +100,10 @@ class PaigeantAgent(Agent):
         kwargs["output_type"] = _edit_itinerary_func
 
         super().__init__(*args, **kwargs)
+
+        # Register this agent instance by name for lookup during execution
+        agent_name = getattr(self, "name", self.agent_id)
+        AGENT_REGISTRY[agent_name] = self
 
         self._instructions_functions.append(
             _system_prompt.SystemPromptRunner(_extract_previous_output, dynamic=True)
