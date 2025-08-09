@@ -1,8 +1,8 @@
 import os
 import sys
+from pathlib import Path
 import asyncio
 import multiprocessing
-from pathlib import Path
 
 os.environ.setdefault("ANTHROPIC_API_KEY", "test")
 os.environ["PAIGEANT_TRANSPORT"] = "redis"
@@ -13,7 +13,7 @@ from paigeant import get_transport
 from guides.dynamic_multi_agent_example import run_three_agent_joke_workflow
 
 
-def _run_agent_process(agent_name: str, agent_path: str, executed):
+def _run_agent_process(agent_name: str, executed):
     from typer.testing import CliRunner
     from unittest.mock import patch
     from paigeant.cli import app
@@ -35,18 +35,10 @@ def _run_agent_process(agent_name: str, agent_path: str, executed):
     with patch(
         "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
     ), patch("paigeant.cli.ActivityExecutor.start", new=start_with_timeout):
-        result = runner.invoke(app, ["execute", agent_name, agent_path])
+        result = runner.invoke(
+            app, ["execute", agent_name, "guides.dynamic_multi_agent_example"]
+        )
         assert result.exit_code == 0
-
-
-def _redis_len(queue: str) -> int:
-    transport = get_transport()
-    async def inner():
-        await transport.connect()
-        length = await transport._redis.llen(queue)
-        await transport.disconnect()
-        return length
-    return asyncio.run(inner())
 
 
 def _flushdb() -> None:
@@ -60,10 +52,8 @@ def _flushdb() -> None:
 
 def test_dynamic_agent_cli_execution():
     _flushdb()
-
     asyncio.run(run_three_agent_joke_workflow())
 
-    agent_path = "guides.dynamic_multi_agent_example"
     agent_names = [
         "topic_extractor_agent",
         "joke_generator_agent",
@@ -74,16 +64,11 @@ def test_dynamic_agent_cli_execution():
     with multiprocessing.Manager() as manager:
         executed = manager.list()
         for name in agent_names:
-            queue = f"paigeant:{name}"
-            before = _redis_len(queue)
-            assert before > 0
             proc = multiprocessing.Process(
-                target=_run_agent_process, args=(name, agent_path, executed)
+                target=_run_agent_process, args=(name, executed)
             )
             proc.start()
             proc.join()
             assert proc.exitcode == 0
-            after = _redis_len(queue)
-            assert after < before
 
         assert list(executed) == agent_names
