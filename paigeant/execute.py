@@ -33,10 +33,10 @@ class ActivityExecutor:
         """Return the next activity from the message's routing slip."""
         return message.routing_slip.next_step()
 
-    async def start(self, timeout=None) -> None:
+    async def start(self, lifespan=None) -> None:
         """Start listening for workflow messages on the given topic."""
         async for raw_message, message in self._transport.subscribe(
-            self._agent_name, timeout=timeout
+            self._agent_name, lifespan=lifespan
         ):
             activity = self.extract_activity(message)
             await self._handle_activity(activity, message)
