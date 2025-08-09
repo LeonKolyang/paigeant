@@ -11,6 +11,12 @@ from paigeant import ActivityExecutor, get_transport
 app = typer.Typer(help="CLI for Paigeant workflows")
 
 
+@app.callback()
+def main() -> None:
+    """Paigeant CLI entry point."""
+    pass
+
+
 @app.command()
 def execute(agent_name: str, agent_path: str) -> None:
     """Run an ActivityExecutor for the given agent."""

@@ -35,7 +35,7 @@ def _run_agent_process(agent_name: str, agent_path: str, executed):
     with patch(
         "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
     ), patch("paigeant.cli.ActivityExecutor.start", new=start_with_timeout):
-        result = runner.invoke(app, [agent_name, agent_path])
+        result = runner.invoke(app, ["execute", agent_name, agent_path])
         assert result.exit_code == 0
 
 
