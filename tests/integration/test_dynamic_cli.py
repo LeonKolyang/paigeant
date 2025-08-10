@@ -33,17 +33,17 @@ def _run_agent_process(agent_name: str, executed):
         return Result(PaigeantOutput(output="done"))
 
     runner = CliRunner()
-    with patch("paigeant.agent.wrapper.PaigeantAgent.run", new=fake_run):
-        result = runner.invoke(
-            app,
-            [
-                "execute",
-                agent_name,
-                "--lifespan",
-                "30.0",
-            ],
-        )
-        assert result.exit_code == 0
+    #with patch("paigeant.agent.wrapper.PaigeantAgent.run", new=fake_run):
+    result = runner.invoke(
+        app,
+        [
+           "execute",
+            agent_name,
+            "--lifespan",
+            "30.0",
+        ],
+    )
+    assert result.exit_code == 0
 
 
 def _flushdb() -> None:
