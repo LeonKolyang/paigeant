@@ -41,7 +41,7 @@ def create_edit_itinerary_tool(output_type: Type[T]) -> Callable:
         )
 
         steps: List[ActivitySpec] = []
-        if not follow_up_agents:
+        if not follow_up_agents or not ctx.deps.itinerary_edit_limit:
             logger.debug("No follow-up agents specified, returning original output")
             return PaigeantOutput[output_type](
                 output=run_output,
@@ -92,7 +92,7 @@ class PaigeantAgent(Agent):
 
         self.dispatcher = dispatcher
         self.can_edit_itinerary = can_edit_itinerary
-        self.max_added_steps = max_added_steps
+        self.max_added_steps = max_added_steps if can_edit_itinerary else 0
 
         output_type = kwargs.pop("output_type", str)
         _edit_itinerary_func = create_edit_itinerary_tool(output_type)
