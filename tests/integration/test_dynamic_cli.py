@@ -25,15 +25,8 @@ def _run_agent_process(agent_name: str, executed):
         def __init__(self, output):
             self.output = output
 
-    async def fake_run(self, prompt, deps=None):
-        executed.append(self.name)
-        if self.name == "joke_generator_agent":
-            forwarder = deps.activity_registry["joke_forwarder_agent"]
-            return Result(PaigeantOutput(output="jokes", added_activities=[forwarder]))
-        return Result(PaigeantOutput(output="done"))
 
     runner = CliRunner()
-    #with patch("paigeant.agent.wrapper.PaigeantAgent.run", new=fake_run):
     result = runner.invoke(
         app,
         [
