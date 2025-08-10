@@ -23,7 +23,7 @@ uv run python guides/single_agent_example.py
 
 # Start a worker for multi-agent examples (requires Redis)
 export PAIGEANT_TRANSPORT=redis
-uv run paigeant execute joke_generator_agent guides.multi_agent_example
+uv run paigeant execute joke_generator_agent
 ```
 
 ## Key benefits

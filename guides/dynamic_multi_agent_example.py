@@ -142,13 +142,13 @@ Workflow dispatched with correlation ID: {correlation_id}
 To run the workers for each agent, start these in separate terminals:
 
 1. Topic extractor worker:
-uv run paigeant execute topic_extractor_agent guides.three_agent_workflow_example
+uv run paigeant execute topic_extractor_agent
 
 2. Joke generator worker:
-uv run paigeant execute joke_generator_agent guides.three_agent_workflow_example
+uv run paigeant execute joke_generator_agent
 
 3. Joke selector worker:
-uv run paigeant execute joke_selector_agent guides.three_agent_workflow_example
+uv run paigeant execute joke_selector_agent
 """
     )
 

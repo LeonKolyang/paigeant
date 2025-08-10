@@ -11,6 +11,7 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from guides.dynamic_multi_agent_example import run_three_agent_joke_workflow
 from paigeant import get_transport
+from paigeant.agent.wrapper import PaigeantOutput
 
 
 def _run_agent_process(agent_name: str, executed):
@@ -20,21 +21,24 @@ def _run_agent_process(agent_name: str, executed):
 
     from paigeant.cli import app
 
-    async def fake_handle(self, activity, message):
-        executed.append(activity.agent_name)
-        if activity.agent_name == "joke_generator_agent":
-            forwarder = message.activity_registry["joke_forwarder_agent"]
-            message.routing_slip.insert_activities([forwarder])
-        await message.forward_to_next_step(self._transport)
+    class Result:
+        def __init__(self, output):
+            self.output = output
+
+    async def fake_run(self, prompt, deps=None):
+        executed.append(self.name)
+        if self.name == "joke_generator_agent":
+            forwarder = deps.activity_registry["joke_forwarder_agent"]
+            return Result(PaigeantOutput(output="jokes", added_activities=[forwarder]))
+        return Result(PaigeantOutput(output="done"))
 
     runner = CliRunner()
-    with patch("paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle):
+    with patch("paigeant.agent.wrapper.PaigeantAgent.run", new=fake_run):
         result = runner.invoke(
             app,
             [
                 "execute",
                 agent_name,
-                "guides.dynamic_multi_agent_example",
                 "--lifespan",
                 "30.0",
             ],
