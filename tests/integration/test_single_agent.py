@@ -53,7 +53,7 @@ async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
             params={"count": count},
             headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
         )
-    await response.raise_for_status()
+    response.raise_for_status()
     return f"Generated {count} jokes"
 
 
