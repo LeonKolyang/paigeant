@@ -14,29 +14,30 @@ from paigeant import get_transport
 from paigeant.agent.wrapper import PaigeantOutput
 
 
-def _run_agent_process(agent_name: str, executed):
+def _run_agent_process(agent_name: str, executed, errors):
     from unittest.mock import patch
 
     from typer.testing import CliRunner
 
     from paigeant.cli import app
 
-    class Result:
-        def __init__(self, output):
-            self.output = output
-
-
     runner = CliRunner()
     result = runner.invoke(
         app,
         [
-           "execute",
+            "execute",
             agent_name,
             "--lifespan",
             "30.0",
         ],
     )
-    assert result.exit_code == 0
+    if result.exit_code == 0:
+        executed.append(agent_name)
+    else:
+        output = result.stdout or ""
+        if result.exception:
+            output += f"\n{result.exception}"
+        errors[agent_name] = output
 
 
 def _flushdb() -> None:
@@ -63,14 +64,17 @@ def test_dynamic_agent_cli_execution():
 
     with multiprocessing.Manager() as manager:
         executed = manager.list()
+        errors = manager.dict()
         processes = [
-            multiprocessing.Process(target=_run_agent_process, args=(name, executed))
+            multiprocessing.Process(
+                target=_run_agent_process, args=(name, executed, errors)
+            )
             for name in agent_names
         ]
         for proc in processes:
             proc.start()
-        for proc in processes:
+        for proc, name in zip(processes, agent_names):
             proc.join()
-            assert proc.exitcode == 0
+            assert proc.exitcode == 0, errors.get(name)
 
         assert list(executed) == agent_names
