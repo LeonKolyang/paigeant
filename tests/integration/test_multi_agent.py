@@ -93,13 +93,9 @@ async def test_two_agent_integration():
     print(f"First agent queue length: {first_queue_before}")
     assert first_queue_before > 0, "First agent should have message in queue"
 
-    async def fake_handle(self, activity, message):
-        await message.forward_to_next_step(self._transport)
-
-    with patch("paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle):
-        # Run first executor
-        first_executor = ActivityExecutor(transport, agent_name=first_agent_name)
-        await first_executor.start(lifespan=5)
+    # Run first executor
+    first_executor = ActivityExecutor(transport, agent_name=first_agent_name)
+    await first_executor.start(lifespan=5)
 
     # Verify first agent processed and second agent received message
     first_queue_after = await transport._redis.llen(first_queue)
@@ -116,10 +112,9 @@ async def test_two_agent_integration():
         second_queue_length > 0
     ), "Second agent should have received forwarded message"
 
-    with patch("paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle):
-        # Run second executor
-        second_executor = ActivityExecutor(transport, agent_name=second_agent_name)
-        await second_executor.start(lifespan=5)
+    # Run second executor
+    second_executor = ActivityExecutor(transport, agent_name=second_agent_name)
+    await second_executor.start(lifespan=5)
 
     # Verify second agent processed
     second_queue_after = await transport._redis.llen(second_queue)
