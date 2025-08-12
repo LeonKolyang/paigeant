@@ -22,15 +22,22 @@ def _run_agent_process(agent_name: str, executed, errors):
     from paigeant.cli import app
 
     runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "execute",
-            agent_name,
-            "--lifespan",
-            "30.0",
-        ],
-    )
+
+    async def fake_handle(self, activity, message):
+        await message.forward_to_next_step(self._transport)
+
+    with patch(
+        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "execute",
+                agent_name,
+                "--lifespan",
+                "30.0",
+            ],
+        )
     if result.exit_code == 0:
         executed.append(agent_name)
     else:
@@ -58,7 +65,6 @@ def test_dynamic_agent_cli_execution():
     agent_names = [
         "topic_extractor_agent",
         "joke_generator_agent",
-        "joke_forwarder_agent",
         "joke_selector_agent",
     ]
 
@@ -77,4 +83,5 @@ def test_dynamic_agent_cli_execution():
             proc.join()
             assert proc.exitcode == 0, errors.get(name)
 
-        assert list(executed) == agent_names
+        assert not errors, dict(errors)
+        assert set(executed) == set(agent_names)

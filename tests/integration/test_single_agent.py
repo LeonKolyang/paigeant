@@ -94,9 +94,11 @@ async def test_single_agent_integration():
     async def fake_handle(self, activity, message):
         await message.forward_to_next_step(self._transport)
 
-    # Start executor
-    #with patch("paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle):
-    await executor.start(lifespan=5)
+    # Start executor with network calls patched out
+    with patch(
+        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
+    ):
+        await executor.start(lifespan=5)
 
     # Verify message was processed from queue
     queue_length_after = await transport._redis.llen(queue_name)
