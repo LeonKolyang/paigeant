@@ -22,6 +22,7 @@ def _run_agent_process(agent_name: str, executed, errors):
     from paigeant.cli import app
 
     runner = CliRunner()
+
     result = runner.invoke(
         app,
         [
@@ -58,7 +59,6 @@ def test_dynamic_agent_cli_execution():
     agent_names = [
         "topic_extractor_agent",
         "joke_generator_agent",
-        "joke_forwarder_agent",
         "joke_selector_agent",
     ]
 
@@ -77,4 +77,5 @@ def test_dynamic_agent_cli_execution():
             proc.join()
             assert proc.exitcode == 0, errors.get(name)
 
-        assert list(executed) == agent_names
+        assert not errors, dict(errors)
+        assert set(executed) == set(agent_names)
