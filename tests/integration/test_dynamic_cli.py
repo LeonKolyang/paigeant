@@ -23,21 +23,15 @@ def _run_agent_process(agent_name: str, executed, errors):
 
     runner = CliRunner()
 
-    async def fake_handle(self, activity, message):
-        await message.forward_to_next_step(self._transport)
-
-    with patch(
-        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
-    ):
-        result = runner.invoke(
-            app,
-            [
-                "execute",
-                agent_name,
-                "--lifespan",
-                "30.0",
-            ],
-        )
+    result = runner.invoke(
+        app,
+        [
+            "execute",
+            agent_name,
+            "--lifespan",
+            "30.0",
+        ],
+    )
     if result.exit_code == 0:
         executed.append(agent_name)
     else:
