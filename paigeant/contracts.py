@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -39,13 +41,33 @@ class ActivitySpec(BaseModel):
     arguments: Dict[str, Any] = Field(default_factory=dict)
 
 
+class ActivityRegistry(BaseModel):
+    activities: Dict[str, ActivitySpec] = {}
+    path: Optional[Path] = Path(".")
+
+    def register(self, activity: ActivitySpec) -> None:
+        self.activities[activity.agent_name] = activity
+        self.persist()
+
+    def get(self, agent_name: str) -> Optional[ActivitySpec]:
+        return self.activities.get(agent_name)
+
+    def persist(self, path: Optional[Path] = None) -> None:
+        path = path or self.path
+        data = {
+            name: activity.model_dump() for name, activity in self.activities.items()
+        }
+        with open(path / "activity_registry.json", "w") as f:
+            json.dump(data, f)
+
+
 class WorkflowDependencies(BaseModel):
     """Container for data shared across workflow activities."""
 
     user_token: Optional[str] = None
     previous_output: Optional[PreviousOutput] = None
     itinerary_edit_limit: Optional[int] = DEFAULT_ITINERARY_EDIT_LIMIT
-    activity_registry: Optional[Dict[str, ActivitySpec]] = None
+    activity_registry: Optional["ActivityRegistry"] = None
 
 
 class RoutingSlip(BaseModel):
@@ -107,7 +129,7 @@ class PaigeantMessage(BaseModel):
     routing_slip: RoutingSlip
     payload: Dict[str, Any] = Field(default_factory=dict)
     spec_version: str = "1.0"
-    activity_registry: Optional[Dict[str, ActivitySpec]] = None
+    activity_registry: Optional[ActivityRegistry] = None
 
     def to_json(self) -> str:
         """Serialize message to JSON."""

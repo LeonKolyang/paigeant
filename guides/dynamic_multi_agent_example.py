@@ -51,7 +51,7 @@ joke_forwarder_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
     deps_type=JokeWorkflowDeps,
     output_type=str,
-    system_prompt=("Forward the jokes to the next agent. "),
+    system_prompt=("Don't touch the input."),
     dispatcher=dispatcher,
     name="joke_forwarder_agent",
 )

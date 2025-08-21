@@ -1,6 +1,7 @@
 """Command line interface for running Paigeant workers."""
 
 import asyncio
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -18,11 +19,15 @@ def main() -> None:
 
 
 @app.command()
-def execute(agent_name: str, lifespan: Optional[float] = None) -> None:
+def execute(
+    agent_name: str,
+    base_path: Optional[Path] = "",
+    lifespan: Optional[float] = None,
+) -> None:
     """Run an ActivityExecutor for the given agent."""
-    discover_agent(agent_name)
     transport = get_transport()
-    executor = ActivityExecutor(transport, agent_name=agent_name)
+    executor = ActivityExecutor(transport, agent_name=agent_name, base_path=base_path)
+    print("Starting agent:", agent_name)
     asyncio.run(executor.start(lifespan=lifespan))
 
 

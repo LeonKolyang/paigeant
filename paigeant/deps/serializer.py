@@ -1,3 +1,4 @@
+import inspect
 from typing import Any, Tuple
 
 
@@ -14,11 +15,11 @@ class DependencySerializer:
         if deps is None:
             return None, None, None
 
-        deps_type = type(deps).__name__
-        deps_module = type(deps).__module__
-
         if isinstance(deps, str):
             return deps, "str", "builtins"
+
+        deps_type = type(deps).__name__
+        deps_module = inspect.getmodule(deps).__spec__.name
 
         if hasattr(deps, "model_dump") and callable(deps.model_dump):
             try:

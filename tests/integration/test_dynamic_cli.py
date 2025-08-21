@@ -11,12 +11,9 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from guides.dynamic_multi_agent_example import run_three_agent_joke_workflow
 from paigeant import get_transport
-from paigeant.agent.wrapper import PaigeantOutput
 
 
 def _run_agent_process(agent_name: str, executed, errors):
-    from unittest.mock import patch
-
     from typer.testing import CliRunner
 
     from paigeant.cli import app
@@ -57,6 +54,7 @@ def test_dynamic_agent_cli_execution():
     asyncio.run(run_three_agent_joke_workflow())
 
     agent_names = [
+        "joke_forwarder_agent",
         "topic_extractor_agent",
         "joke_generator_agent",
         "joke_selector_agent",

@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import logging
+import pkgutil
+from importlib import import_module
 from typing import Any
 
+from anyio import Path
+from mistralai_azure import Optional
 from pydantic_ai import Agent
 
+from paigeant.agent.discovery import discover_agent
 from paigeant.agent.wrapper import AGENT_REGISTRY
 from paigeant.deps.deserializer import DependencyDeserializer
 
@@ -24,9 +29,15 @@ logger = logging.getLogger(__name__)
 class ActivityExecutor:
     """Executes workflow activities by listening to transport messages."""
 
-    def __init__(self, transport: BaseTransport, agent_name: str) -> None:
+    def __init__(
+        self,
+        transport: BaseTransport,
+        agent_name: str,
+        base_path: Optional[Path] = None,
+    ) -> None:
         self._transport = transport
         self._agent_name = agent_name
+        self.agent: Agent = discover_agent(agent_name, base_path)
         self.executed_activities = []
 
     def extract_activity(self, message: PaigeantMessage) -> ActivitySpec:
@@ -35,6 +46,9 @@ class ActivityExecutor:
 
     async def start(self, lifespan=None) -> None:
         """Start listening for workflow messages on the given topic."""
+        if not self.agent:
+            raise ValueError(f"Agent {self._agent_name} not found in registry.")
+
         async for raw_message, message in self._transport.subscribe(
             self._agent_name, lifespan=lifespan
         ):
@@ -49,10 +63,6 @@ class ActivityExecutor:
         print(f"Received activity: {activity}")
         print(f"Agent name: {self._agent_name}")
 
-        agent: Agent | None = AGENT_REGISTRY.get(self._agent_name)
-        if agent is None:
-            raise ValueError(f"Agent {self._agent_name} not found in registry")
-
         raw_deps: Any = None
         if activity.deps and activity.deps.data:
             try:
@@ -60,13 +70,13 @@ class ActivityExecutor:
                     deps_data=activity.deps.data,
                     deps_type=activity.deps.type,
                     deps_module=activity.deps.module,
-                    fallback_module=agent.__module__,
+                    fallback_module=self.agent.__module__,
                 )
             except Exception as e:
                 print(f"Failed to deserialize deps: {e}")
 
         full_deps = self._add_workflow_dependencies(raw_deps, message)
-        result = await agent.run(activity.prompt, deps=full_deps)
+        result = await self.agent.run(activity.prompt, deps=full_deps)
 
         added = (
             result.output.added_activities

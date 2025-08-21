@@ -27,52 +27,6 @@ class PaigeantOutput(BaseModel, Generic[T]):
     added_activities: list[Optional[ActivitySpec]] = Field(default_factory=list)
 
 
-def create_edit_itinerary_tool(output_type: Type[T]) -> Callable:
-    """Return an ``_edit_itinerary`` function parameterized by ``output_type``."""
-
-    def _edit_itinerary(
-        ctx: RunContext[WorkflowDependencies],
-        run_output: Any,
-        follow_up_agents: Optional[Dict[str, Optional[str]]],
-    ) -> PaigeantOutput[Any]:
-        """Insert additional registered activities into the current workflow."""
-        logger.debug(
-            f"_edit_itinerary called with follow_up_agents: {follow_up_agents}"
-        )
-
-        steps: List[ActivitySpec] = []
-        if not follow_up_agents or not ctx.deps.itinerary_edit_limit:
-            logger.debug("No follow-up agents specified, returning original output")
-            return PaigeantOutput[output_type](
-                output=run_output,
-                added_activities=steps,
-            )
-
-        for agent_name, prompt in follow_up_agents.items():
-            registered = ctx.deps.activity_registry.get(agent_name)
-            if not registered:
-                logger.warning(
-                    f"Agent {agent_name} not found in activity registry"
-                )
-            if prompt:
-                logger.debug(f"Updating prompt for agent {agent_name}")
-                registered.prompt = prompt
-            steps.append(registered)
-
-        logger.info(
-            f"Added {len(steps)} activities to workflow: {[step.agent_name for step in steps]}"
-        )
-        return PaigeantOutput[output_type](
-            output=run_output,
-            added_activities=steps,
-        )
-
-    _edit_itinerary.__annotations__["run_output"] = output_type
-    _edit_itinerary.__annotations__["return"] = PaigeantOutput[output_type]
-
-    return _edit_itinerary
-
-
 class PaigeantAgent(Agent):
     """Base class for paigeant agents with workflow dispatch capability."""
 
@@ -95,7 +49,7 @@ class PaigeantAgent(Agent):
         self.max_added_steps = max_added_steps if can_edit_itinerary else 0
 
         output_type = kwargs.pop("output_type", str)
-        _edit_itinerary_func = create_edit_itinerary_tool(output_type)
+        _edit_itinerary_func = self._create_edit_itinerary_tool(output_type)
         kwargs["output_type"] = _edit_itinerary_func
 
         super().__init__(*args, **kwargs)
@@ -147,3 +101,46 @@ class PaigeantAgent(Agent):
             f"Registering activity for agent {self.agent_id} with prompt: {prompt} and deps: {deps}"
         )
         return self.dispatcher.register_activity(agent=self, prompt=prompt, deps=deps)
+
+    def _create_edit_itinerary_tool(self, output_type: Type[T]) -> Callable:
+        """Return an ``_edit_itinerary`` function parameterized by ``output_type``."""
+
+        def _edit_itinerary(
+            ctx: RunContext[WorkflowDependencies],
+            run_output: Any,
+            follow_up_agents: Optional[Dict[str, Optional[str]]],
+        ) -> PaigeantOutput[Any]:
+            """Insert additional registered activities into the current workflow."""
+            logger.debug(
+                f"_edit_itinerary called with follow_up_agents: {follow_up_agents}"
+            )
+
+            steps: List[ActivitySpec] = []
+            if not follow_up_agents or not ctx.deps.itinerary_edit_limit:
+                logger.debug("No follow-up agents specified, returning original output")
+                return PaigeantOutput[output_type](
+                    output=run_output,
+                    added_activities=steps,
+                )
+
+            for agent_name, prompt in follow_up_agents.items():
+                registered = ctx.deps.activity_registry.activities.get(agent_name)
+                if not registered:
+                    logger.warning(f"Agent {agent_name} not found in activity registry")
+                if prompt:
+                    logger.debug(f"Updating prompt for agent {agent_name}")
+                    registered.prompt = prompt
+                steps.append(registered)
+
+            logger.info(
+                f"Added {len(steps)} activities to workflow: {[step.agent_name for step in steps]}"
+            )
+            return PaigeantOutput[output_type](
+                output=run_output,
+                added_activities=steps,
+            )
+
+        _edit_itinerary.__annotations__["run_output"] = output_type
+        _edit_itinerary.__annotations__["return"] = PaigeantOutput[output_type]
+
+        return _edit_itinerary

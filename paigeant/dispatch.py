@@ -5,10 +5,18 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from anyio import Path
+
 if TYPE_CHECKING:
     from paigeant.agent.wrapper import PaigeantAgent
 
-from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip, SerializedDeps
+from .contracts import (
+    ActivityRegistry,
+    ActivitySpec,
+    PaigeantMessage,
+    RoutingSlip,
+    SerializedDeps,
+)
 from .deps.serializer import DependencySerializer
 from .transports import BaseTransport
 
@@ -26,7 +34,7 @@ class WorkflowDispatcher:
 
     def __init__(self) -> None:
         self._itinerary: List[ActivitySpec] = []
-        self._activity_registry: Dict[str, ActivitySpec] = {}
+        self._activity_registry = ActivityRegistry()
         self._agent_registry: Dict[str, PaigeantAgent] = {}
 
     def _create_activity(
@@ -59,7 +67,7 @@ class WorkflowDispatcher:
         """Add an activity to the workflow itinerary and registry."""
         activity = self._create_activity(agent, prompt, deps, agent_name)
 
-        self._activity_registry[activity.agent_name] = activity
+        self._activity_registry.register(activity)
         if not register_only:
             self._itinerary.append(activity)
 
