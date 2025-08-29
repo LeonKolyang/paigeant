@@ -1,5 +1,4 @@
 import os
-from unittest.mock import patch
 
 import httpx
 import pytest
@@ -53,7 +52,7 @@ async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
             params={"count": count},
             headers={"Authorization": f"Bearer {ctx.deps.http_key.api_key}"},
         )
-    await response.raise_for_status()
+    response.raise_for_status()
     return f"Generated {count} jokes"
 
 
@@ -65,7 +64,6 @@ async def test_single_agent_integration():
     # Setup workflow infrastructure
     os.environ["PAIGEANT_TRANSPORT"] = "redis"
     agent_name = "joke_generation_agent"
-    agent_path = "tests.integration.test_single_agent"
 
     transport = get_transport()
 
@@ -90,16 +88,10 @@ async def test_single_agent_integration():
     assert queue_length_before > 0, "Message should be in queue after dispatch"
 
     transport = get_transport()
-    executor = ActivityExecutor(transport, agent_name=agent_name, agent_path=agent_path)
+    executor = ActivityExecutor(transport, agent_name=agent_name)
 
-    async def fake_handle(self, activity, message):
-        await message.forward_to_next_step(self._transport)
-
-    # Start executor
-    with patch(
-        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
-    ):
-        await executor.start(timeout=5)
+    # Start executor with network calls patched out
+    await executor.start(lifespan=5)
 
     # Verify message was processed from queue
     queue_length_after = await transport._redis.llen(queue_name)

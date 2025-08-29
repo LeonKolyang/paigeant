@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from pathlib import Path
 
 import pytest
 from pydantic import BaseModel
@@ -64,7 +64,6 @@ async def test_two_agent_integration():
     # Agent definitions
     first_agent_name = "joke_processor_agent"
     second_agent_name = "joke_formatter_agent"
-    agent_path = "tests.integration.test_multi_agent"
 
     transport = get_transport()
 
@@ -94,17 +93,12 @@ async def test_two_agent_integration():
     print(f"First agent queue length: {first_queue_before}")
     assert first_queue_before > 0, "First agent should have message in queue"
 
-    async def fake_handle(self, activity, message):
-        await message.forward_to_next_step(self._transport)
+    # Run first executor
+    first_executor = ActivityExecutor(
+        transport, agent_name=first_agent_name, base_path=Path(__file__).parent
+    )
 
-    with patch(
-        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
-    ):
-        # Run first executor
-        first_executor = ActivityExecutor(
-            transport, agent_name=first_agent_name, agent_path=agent_path
-        )
-        await first_executor.start(timeout=5)
+    await first_executor.start(lifespan=5)
 
     # Verify first agent processed and second agent received message
     first_queue_after = await transport._redis.llen(first_queue)
@@ -121,14 +115,11 @@ async def test_two_agent_integration():
         second_queue_length > 0
     ), "Second agent should have received forwarded message"
 
-    with patch(
-        "paigeant.execute.ActivityExecutor._handle_activity", new=fake_handle
-    ):
-        # Run second executor
-        second_executor = ActivityExecutor(
-            transport, agent_name=second_agent_name, agent_path=agent_path
-        )
-        await second_executor.start(timeout=5)
+    # Run second executor
+    second_executor = ActivityExecutor(
+        transport, agent_name=second_agent_name, base_path=Path(__file__).parent
+    )
+    await second_executor.start(lifespan=5)
 
     # Verify second agent processed
     second_queue_after = await transport._redis.llen(second_queue)

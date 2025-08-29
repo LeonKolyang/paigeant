@@ -24,20 +24,20 @@ class InMemoryTransport(BaseTransport[Tuple[str, PaigeantMessage]]):
             self._queues[topic].append(raw)
 
     async def subscribe(
-        self, topic: str, timeout: Optional[float] = None
+        self, topic: str, lifespan: Optional[float] = None
     ) -> AsyncIterator[Tuple[Tuple[str, PaigeantMessage], PaigeantMessage]]:
         """Subscribe to messages from topic.
 
         Args:
             topic: The topic to subscribe to
-            timeout: Maximum time in seconds to keep connection open. If None, runs indefinitely.
+            lifespan: Maximum time in seconds to keep connection open. If None, runs indefinitely.
         """
-        start_time = asyncio.get_event_loop().time() if timeout else None
+        start_time = asyncio.get_event_loop().time() if lifespan else None
 
         while True:
-            if timeout and start_time:
+            if lifespan and start_time:
                 elapsed = asyncio.get_event_loop().time() - start_time
-                if elapsed >= timeout:
+                if elapsed >= lifespan:
                     break
 
             async with self._lock:

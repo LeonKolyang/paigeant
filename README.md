@@ -58,7 +58,7 @@ correlation_id = await dispatcher.dispatch_workflow(transport)
 An `ActivityExecutor` pulls messages from the transport and executes the agent's activity. Start one using the CLI:
 
 ```bash
-uv run paigeant execute agent my.module
+uv run paigeant execute agent
 ```
 
 ## Transports
