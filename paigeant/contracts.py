@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from .constants import DEFAULT_ITINERARY_EDIT_LIMIT
+from .persistence import WorkflowRepository
 
 if TYPE_CHECKING:
     from .transports import BaseTransport
@@ -140,7 +141,9 @@ class PaigeantMessage(BaseModel):
         """Deserialize message from JSON."""
         return cls.model_validate_json(data)
 
-    async def forward_to_next_step(self, transport: "BaseTransport") -> None:
+    async def forward_to_next_step(
+        self, transport: "BaseTransport", repository: WorkflowRepository | None = None
+    ) -> None:
         """Advance workflow and publish message to next activity if any.
 
         Raises:
@@ -155,6 +158,10 @@ class PaigeantMessage(BaseModel):
             return
 
         self.routing_slip.mark_complete(current)
+        if repository is not None:
+            await repository.update_routing_slip(
+                self.correlation_id, self.routing_slip.model_dump()
+            )
         logger.info(
             f"Completed activity {current.agent_name} for correlation_id={self.correlation_id}"
         )
@@ -162,6 +169,8 @@ class PaigeantMessage(BaseModel):
         next_activity = self.routing_slip.next_step()
         if next_activity is None:
             logger.info(f"Workflow completed for correlation_id={self.correlation_id}")
+            if repository is not None:
+                await repository.mark_workflow_completed(self.correlation_id)
             return
 
         try:

@@ -21,6 +21,7 @@ from .contracts import (
     PreviousOutput,
     WorkflowDependencies,
 )
+from .persistence import WorkflowRepository
 from .transports import BaseTransport
 
 logger = logging.getLogger(__name__)
@@ -34,11 +35,13 @@ class ActivityExecutor:
         transport: BaseTransport,
         agent_name: str,
         base_path: Optional[Path] = None,
+        repository: WorkflowRepository | None = None,
     ) -> None:
         self._transport = transport
         self._agent_name = agent_name
         self.agent: Agent = discover_agent(agent_name, base_path)
         self.executed_activities = []
+        self._repository = repository
 
     def extract_activity(self, message: PaigeantMessage) -> ActivitySpec:
         """Return the next activity from the message's routing slip."""
@@ -75,8 +78,23 @@ class ActivityExecutor:
             except Exception as e:
                 print(f"Failed to deserialize deps: {e}")
 
+        if self._repository is not None:
+            await self._repository.mark_step_started(
+                message.correlation_id, activity.agent_name
+            )
+
         full_deps = self._add_workflow_dependencies(raw_deps, message)
-        result = await self.agent.run(activity.prompt, deps=full_deps)
+        try:
+            result = await self.agent.run(activity.prompt, deps=full_deps)
+        except Exception as e:
+            if self._repository is not None:
+                await self._repository.mark_step_completed(
+                    message.correlation_id,
+                    activity.agent_name,
+                    status="failed",
+                    output={"error": str(e)},
+                )
+            raise
 
         added = (
             result.output.added_activities
@@ -92,12 +110,23 @@ class ActivityExecutor:
         else:
             message.payload[self._agent_name] = None
 
+        if self._repository is not None:
+            await self._repository.update_payload(
+                message.correlation_id, message.payload
+            )
+            await self._repository.mark_step_completed(
+                message.correlation_id,
+                activity.agent_name,
+                status="completed",
+                output={"result": message.payload.get(self._agent_name)},
+            )
+
         logger.info(
             f"Agent {self._agent_name} completed for correlation_id={message.correlation_id}"
         )
         print(result)
 
-        await message.forward_to_next_step(self._transport)
+        await message.forward_to_next_step(self._transport, self._repository)
 
     def _add_workflow_dependencies(
         self, deps: WorkflowDependencies | None, message: PaigeantMessage

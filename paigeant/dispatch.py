@@ -18,6 +18,7 @@ from .contracts import (
     SerializedDeps,
 )
 from .deps.serializer import DependencySerializer
+from .persistence import WorkflowRepository
 from .transports import BaseTransport
 
 
@@ -82,6 +83,7 @@ class WorkflowDispatcher:
         transport: BaseTransport,
         variables: Optional[Dict[str, Any]] = None,
         obo_token: Optional[str] = None,
+        repository: WorkflowRepository | None = None,
     ) -> str:
         """Dispatch the current itinerary over ``transport``.
 
@@ -102,6 +104,18 @@ class WorkflowDispatcher:
             payload=variables or {},
             activity_registry=self._activity_registry,
         )
+
+        if repository is not None:
+            try:
+                await repository.create_workflow(
+                    correlation_id,
+                    routing_slip.model_dump(),
+                    message.payload,
+                )
+            except Exception:
+                # Abort dispatch if persistence fails
+                raise
+
         first_step = routing_slip.next_step()
         await transport.publish(first_step.agent_name, message)
         return correlation_id
