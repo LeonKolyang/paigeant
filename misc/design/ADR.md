@@ -26,3 +26,26 @@ Use dependency injection at message reception rather than modifying the routing 
   - Rejected: Creates tight coupling between agents and workflow engine
   - Rejected: Violates single responsibility principle
   - Rejected: Makes message routing dependent on business logic
+## ADR-002: Persisting Workflow State with Repository Registry
+
+**Date**: 2025-08-27
+**Status**: Accepted
+**Context**: Phase 4 of the persistence roadmap requires verifying durable workflow state and idempotent updates.
+
+### Decision
+- Use a workflow repository as a registry to persist routing slips, payloads and step history during integration tests.
+- Enforce uniqueness on `(correlation_id, step_name)` and ignore duplicate `mark_step_started` calls for idempotent step tracking.
+
+### Rationale
+- Guarantees crash recovery and auditing through persisted state.
+- Prevents duplicate step records when messages are retried.
+- Demonstrates repository usage in existing workflows without altering business logic.
+
+### Implementation
+- Added unique constraint and `INSERT OR IGNORE` semantics to SQLite repository.
+- Extended single and multi‑agent integration tests to use `SQLiteWorkflowRepository` and assert persisted workflow state and activity registry availability.
+- Added repository unit test covering duplicate updates.
+
+### Alternatives Considered
+- Allowing duplicate step inserts and cleaning them later – rejected due to harder querying and audit noise.
+

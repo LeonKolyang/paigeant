@@ -45,7 +45,8 @@ class SQLiteWorkflowRepository(WorkflowRepository):
                 started_at TEXT,
                 completed_at TEXT,
                 status TEXT,
-                output TEXT
+                output TEXT,
+                UNIQUE(correlation_id, step_name)
             )
             """
         )
@@ -93,7 +94,7 @@ class SQLiteWorkflowRepository(WorkflowRepository):
     async def mark_step_started(self, correlation_id: str, step_name: str) -> None:
         await asyncio.to_thread(
             self._execute,
-            "INSERT INTO step_history (correlation_id, step_name, started_at) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO step_history (correlation_id, step_name, started_at) VALUES (?, ?, ?)",
             correlation_id,
             step_name,
             datetime.utcnow().isoformat(),

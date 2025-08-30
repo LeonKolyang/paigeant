@@ -12,6 +12,7 @@ from paigeant import (
     get_transport,
 )
 from paigeant.execute import ActivityExecutor
+from paigeant.persistence import SQLiteWorkflowRepository
 
 os.environ.setdefault("ANTHROPIC_API_KEY", "test")
 os.environ.setdefault("PAIGEANT_TRANSPORT", "redis")
@@ -55,7 +56,7 @@ joke_formatter_agent = PaigeantAgent(
 
 
 @pytest.mark.asyncio
-async def test_two_agent_integration():
+async def test_two_agent_integration(tmp_path):
     """Test workflow with two agents where first forwards to second."""
 
     print("Running two-agent workflow integration test...")
@@ -66,6 +67,7 @@ async def test_two_agent_integration():
     second_agent_name = "joke_formatter_agent"
 
     transport = get_transport()
+    repo = SQLiteWorkflowRepository(tmp_path / "wf.db")
 
     http_key = HttpKey(api_key="test-key")
     deps = JokeWorkflowDeps(
@@ -84,7 +86,7 @@ async def test_two_agent_integration():
         deps=deps,
     )
 
-    correlation_id = await dispatcher.dispatch_workflow(transport)
+    correlation_id = await dispatcher.dispatch_workflow(transport, repository=repo)
     print(f"Two-agent workflow dispatched with correlation_id: {correlation_id}")
 
     # Check first agent queue
@@ -95,7 +97,10 @@ async def test_two_agent_integration():
 
     # Run first executor
     first_executor = ActivityExecutor(
-        transport, agent_name=first_agent_name, base_path=Path(__file__).parent
+        transport,
+        agent_name=first_agent_name,
+        base_path=Path(__file__).parent,
+        repository=repo,
     )
 
     await first_executor.start(lifespan=5)
@@ -117,9 +122,17 @@ async def test_two_agent_integration():
 
     # Run second executor
     second_executor = ActivityExecutor(
-        transport, agent_name=second_agent_name, base_path=Path(__file__).parent
+        transport,
+        agent_name=second_agent_name,
+        base_path=Path(__file__).parent,
+        repository=repo,
     )
     await second_executor.start(lifespan=5)
+
+    wf = await repo.get_workflow(correlation_id)
+    assert wf is not None
+    assert wf.status == "completed"
+    assert [s.step_name for s in wf.steps] == [first_agent_name, second_agent_name]
 
     # Verify second agent processed
     second_queue_after = await transport._redis.llen(second_queue)
