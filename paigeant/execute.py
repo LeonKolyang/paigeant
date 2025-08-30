@@ -98,17 +98,23 @@ class ActivityExecutor:
 
         added = (
             result.output.added_activities
-            if hasattr(result.output, "added_activities")
+            if hasattr(result, "output") and hasattr(result.output, "added_activities")
             else []
         )
         message.routing_slip.insert_activities(added)
 
         if hasattr(result, "output"):
-            message.payload[self._agent_name] = result.output
+            step_output = (
+                result.output.output
+                if hasattr(result.output, "output")
+                else result.output
+            )
         elif result is not None:
-            message.payload[self._agent_name] = str(result)
+            step_output = str(result)
         else:
-            message.payload[self._agent_name] = None
+            step_output = None
+
+        message.payload[self._agent_name] = step_output
 
         if self._repository is not None:
             await self._repository.update_payload(
@@ -118,7 +124,7 @@ class ActivityExecutor:
                 message.correlation_id,
                 activity.agent_name,
                 status="completed",
-                output={"result": message.payload.get(self._agent_name)},
+                output={"result": step_output},
             )
 
         logger.info(

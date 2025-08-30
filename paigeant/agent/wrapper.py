@@ -127,6 +127,7 @@ class PaigeantAgent(Agent):
                 registered = ctx.deps.activity_registry.activities.get(agent_name)
                 if not registered:
                     logger.warning(f"Agent {agent_name} not found in activity registry")
+                    continue
                 if prompt:
                     logger.debug(f"Updating prompt for agent {agent_name}")
                     registered.prompt = prompt
