@@ -14,6 +14,7 @@ class StepRecord(BaseModel):
     id: Optional[int] = None
     correlation_id: str
     step_name: str
+    run_id: int = 1
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     status: Optional[str] = None

@@ -42,11 +42,12 @@ class SQLiteWorkflowRepository(WorkflowRepository):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 correlation_id TEXT NOT NULL,
                 step_name TEXT NOT NULL,
+                run_id INTEGER NOT NULL DEFAULT 1,
                 started_at TEXT,
                 completed_at TEXT,
                 status TEXT,
                 output TEXT,
-                UNIQUE(correlation_id, step_name)
+                UNIQUE(correlation_id, step_name, run_id)
             )
             """
         )
@@ -91,12 +92,15 @@ class SQLiteWorkflowRepository(WorkflowRepository):
             correlation_id,
         )
 
-    async def mark_step_started(self, correlation_id: str, step_name: str) -> None:
+    async def mark_step_started(
+        self, correlation_id: str, step_name: str, run_id: int = 1
+    ) -> None:
         await asyncio.to_thread(
             self._execute,
-            "INSERT OR IGNORE INTO step_history (correlation_id, step_name, started_at) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO step_history (correlation_id, step_name, run_id, started_at) VALUES (?, ?, ?, ?)",
             correlation_id,
             step_name,
+            run_id,
             datetime.utcnow().isoformat(),
         )
 
@@ -106,19 +110,21 @@ class SQLiteWorkflowRepository(WorkflowRepository):
         step_name: str,
         status: str,
         output: dict | None = None,
+        run_id: int = 1,
     ) -> None:
         await asyncio.to_thread(
             self._execute,
             """
             UPDATE step_history
             SET completed_at = ?, status = ?, output = ?
-            WHERE correlation_id = ? AND step_name = ?
+            WHERE correlation_id = ? AND step_name = ? AND run_id = ?
             """,
             datetime.utcnow().isoformat(),
             status,
             json.dumps(output or {}),
             correlation_id,
             step_name,
+            run_id,
         )
 
     async def update_payload(self, correlation_id: str, payload: dict) -> None:
@@ -149,7 +155,7 @@ class SQLiteWorkflowRepository(WorkflowRepository):
             return None
         steps_rows = await asyncio.to_thread(
             self._fetchall,
-            "SELECT id, correlation_id, step_name, started_at, completed_at, status, output FROM step_history WHERE correlation_id = ? ORDER BY id",
+            "SELECT id, correlation_id, step_name, run_id, started_at, completed_at, status, output FROM step_history WHERE correlation_id = ? ORDER BY id",
             correlation_id,
         )
         steps = [
@@ -157,6 +163,7 @@ class SQLiteWorkflowRepository(WorkflowRepository):
                 id=r["id"],
                 correlation_id=r["correlation_id"],
                 step_name=r["step_name"],
+                run_id=r["run_id"],
                 started_at=datetime.fromisoformat(r["started_at"]) if r["started_at"] else None,
                 completed_at=datetime.fromisoformat(r["completed_at"]) if r["completed_at"] else None,
                 status=r["status"],

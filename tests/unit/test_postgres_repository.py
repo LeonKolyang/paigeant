@@ -1,22 +1,35 @@
+import os
 import uuid
 
 import pytest
 
-from paigeant.persistence import SQLiteWorkflowRepository
+from paigeant.persistence import PostgresWorkflowRepository
+
+
+def _get_dsn() -> str | None:
+    return os.getenv("TEST_PG_DSN", "postgresql://postgres:postgres@localhost:5432/postgres")
 
 
 @pytest.mark.asyncio
-async def test_sqlite_repository_crud(tmp_path):
-    db_path = tmp_path / "wf.db"
-    repo = SQLiteWorkflowRepository(db_path)
+async def test_postgres_repository_crud():
+    dsn = _get_dsn()
+    try:
+        repo = PostgresWorkflowRepository(dsn)
+        # attempt connection
+        conn = await repo._connect()
+        await conn.close()
+    except Exception:
+        pytest.skip("PostgreSQL server not available")
 
     corr_id = str(uuid.uuid4())
     routing_slip = {"itinerary": ["step1"]}
     payload = {"foo": "bar"}
 
     await repo.create_workflow(corr_id, routing_slip, payload)
-    await repo.mark_step_started(corr_id, "step1")
-    await repo.mark_step_completed(corr_id, "step1", status="completed", output={"x": 1})
+    await repo.mark_step_started(corr_id, "step1", run_id=1)
+    await repo.mark_step_completed(
+        corr_id, "step1", status="completed", output={"x": 1}, run_id=1
+    )
     await repo.update_payload(corr_id, {"foo": "baz"})
     await repo.update_routing_slip(corr_id, {"itinerary": []})
     await repo.mark_workflow_completed(corr_id)
@@ -38,18 +51,23 @@ async def test_sqlite_repository_crud(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_sqlite_repository_idempotent_step_updates(tmp_path):
-    repo = SQLiteWorkflowRepository(tmp_path / "wf.db")
+async def test_postgres_repository_idempotent_step_updates():
+    dsn = _get_dsn()
+    try:
+        repo = PostgresWorkflowRepository(dsn)
+        conn = await repo._connect()
+        await conn.close()
+    except Exception:
+        pytest.skip("PostgreSQL server not available")
+
     corr_id = str(uuid.uuid4())
     await repo.create_workflow(corr_id, {"itinerary": ["step1"]}, {})
 
-    # Duplicate calls for the same run_id should be ignored
     await repo.mark_step_started(corr_id, "step1", run_id=1)
     await repo.mark_step_started(corr_id, "step1", run_id=1)
     await repo.mark_step_completed(corr_id, "step1", status="completed", run_id=1)
     await repo.mark_step_completed(corr_id, "step1", status="completed", run_id=1)
 
-    # A new run_id should create a new record
     await repo.mark_step_started(corr_id, "step1", run_id=2)
     await repo.mark_step_started(corr_id, "step1", run_id=2)
     await repo.mark_step_completed(corr_id, "step1", status="completed", run_id=2)

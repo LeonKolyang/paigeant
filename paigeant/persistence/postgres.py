@@ -43,10 +43,12 @@ class PostgresWorkflowRepository(WorkflowRepository):
                 id SERIAL PRIMARY KEY,
                 correlation_id TEXT NOT NULL,
                 step_name TEXT NOT NULL,
+                run_id INTEGER NOT NULL DEFAULT 1,
                 started_at TIMESTAMPTZ,
                 completed_at TIMESTAMPTZ,
                 status TEXT,
-                output JSONB
+                output JSONB,
+                UNIQUE (correlation_id, step_name, run_id)
             )
             """
         )
@@ -78,13 +80,20 @@ class PostgresWorkflowRepository(WorkflowRepository):
         finally:
             await conn.close()
 
-    async def mark_step_started(self, correlation_id: str, step_name: str) -> None:
+    async def mark_step_started(
+        self, correlation_id: str, step_name: str, run_id: int = 1
+    ) -> None:
         conn = await self._connect()
         try:
             await conn.execute(
-                "INSERT INTO step_history (correlation_id, step_name, started_at) VALUES ($1, $2, $3)",
+                """
+                INSERT INTO step_history (correlation_id, step_name, run_id, started_at)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (correlation_id, step_name, run_id) DO NOTHING
+                """,
                 correlation_id,
                 step_name,
+                run_id,
                 datetime.utcnow(),
             )
         finally:
@@ -96,6 +105,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
         step_name: str,
         status: str,
         output: dict | None = None,
+        run_id: int = 1,
     ) -> None:
         conn = await self._connect()
         try:
@@ -103,13 +113,14 @@ class PostgresWorkflowRepository(WorkflowRepository):
                 """
                 UPDATE step_history
                 SET completed_at = $1, status = $2, output = $3
-                WHERE correlation_id = $4 AND step_name = $5
+                WHERE correlation_id = $4 AND step_name = $5 AND run_id = $6
                 """,
                 datetime.utcnow(),
                 status,
                 json.dumps(output or {}),
                 correlation_id,
                 step_name,
+                run_id,
             )
         finally:
             await conn.close()
@@ -148,7 +159,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
             if not row:
                 return None
             steps_rows = await conn.fetch(
-                "SELECT id, correlation_id, step_name, started_at, completed_at, status, output FROM step_history WHERE correlation_id = $1 ORDER BY id",
+                "SELECT id, correlation_id, step_name, run_id, started_at, completed_at, status, output FROM step_history WHERE correlation_id = $1 ORDER BY id",
                 correlation_id,
             )
         finally:
@@ -158,6 +169,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
                 id=r["id"],
                 correlation_id=r["correlation_id"],
                 step_name=r["step_name"],
+                run_id=r["run_id"],
                 started_at=r["started_at"],
                 completed_at=r["completed_at"],
                 status=r["status"],

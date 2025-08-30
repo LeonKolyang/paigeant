@@ -37,16 +37,23 @@ class InMemoryWorkflowRepository(WorkflowRepository):
         if wf:
             wf.routing_slip = routing_slip
 
-    async def mark_step_started(self, correlation_id: str, step_name: str) -> None:
+    async def mark_step_started(
+        self, correlation_id: str, step_name: str, run_id: int = 1
+    ) -> None:
         wf = self._workflows.get(correlation_id)
         if not wf:
             return
+        # ignore duplicate starts for the same run
+        for step in wf.steps:
+            if step.step_name == step_name and step.run_id == run_id:
+                return
         self._step_id += 1
         wf.steps.append(
             StepRecord(
                 id=self._step_id,
                 correlation_id=correlation_id,
                 step_name=step_name,
+                run_id=run_id,
                 started_at=datetime.utcnow(),
             )
         )
@@ -57,12 +64,17 @@ class InMemoryWorkflowRepository(WorkflowRepository):
         step_name: str,
         status: str,
         output: dict | None = None,
+        run_id: int = 1,
     ) -> None:
         wf = self._workflows.get(correlation_id)
         if not wf:
             return
         for step in wf.steps:
-            if step.step_name == step_name and step.completed_at is None:
+            if (
+                step.step_name == step_name
+                and step.run_id == run_id
+                and step.completed_at is None
+            ):
                 step.completed_at = datetime.utcnow()
                 step.status = status
                 step.output = output or {}

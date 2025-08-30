@@ -18,8 +18,10 @@ class WorkflowRepository(Protocol):
     async def update_routing_slip(self, correlation_id: str, routing_slip: dict) -> None:
         """Persist updated routing slip."""
 
-    async def mark_step_started(self, correlation_id: str, step_name: str) -> None:
-        """Record start of a step."""
+    async def mark_step_started(
+        self, correlation_id: str, step_name: str, run_id: int = 1
+    ) -> None:
+        """Record start of a step run."""
 
     async def mark_step_completed(
         self,
@@ -27,8 +29,9 @@ class WorkflowRepository(Protocol):
         step_name: str,
         status: str,
         output: dict | None = None,
+        run_id: int = 1,
     ) -> None:
-        """Record completion of a step."""
+        """Record completion of a step run."""
 
     async def update_payload(self, correlation_id: str, payload: dict) -> None:
         """Persist workflow payload updates."""

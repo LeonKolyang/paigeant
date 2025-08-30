@@ -34,6 +34,7 @@ If an agent crashes, the message stays in the queue until a worker handles it.
 - Optional itinerary editing: agents can insert additional steps
 - Transport abstraction with in-memory and Redis backends
 - Minimal dependencies and `pydantic-ai` integration
+- Experimental persistence via SQLite or PostgreSQL (opt-in)
 
 ## Quick Start
 
@@ -55,8 +56,9 @@ transport = get_transport()  # in-memory by default, configurable via PAIGEANT_T
 correlation_id = await dispatcher.dispatch_workflow(transport)
 ```
 
-To enable state persistence, set a database URL via `PAIGEANT_DATABASE_URL` or
-`DATABASE_URL`. SQLite is supported out of the box:
+To enable experimental state persistence, set a database URL via
+`PAIGEANT_DATABASE_URL` or `DATABASE_URL`. SQLite is supported out of the
+box:
 
 ```bash
 export PAIGEANT_DATABASE_URL=sqlite:///paigeant.db
@@ -86,7 +88,9 @@ uv run pytest -q
 ```
 
 ## Project Status
-Early development. Implemented components: message contracts, workflow dispatcher, activity executor, `PaigeantAgent`, in-memory transport, Redis transport.
+Early development. Implemented components: message contracts, workflow dispatcher,
+activity executor, `PaigeantAgent`, in-memory transport, Redis transport, and an
+experimental persistence layer.
 
 ## License
 MIT

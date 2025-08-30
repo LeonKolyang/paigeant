@@ -34,7 +34,7 @@ Use dependency injection at message reception rather than modifying the routing 
 
 ### Decision
 - Use a workflow repository as a registry to persist routing slips, payloads and step history during integration tests.
-- Enforce uniqueness on `(correlation_id, step_name)` and ignore duplicate `mark_step_started` calls for idempotent step tracking.
+- Enforce uniqueness on `(correlation_id, step_name, run_id)` and ignore duplicate `mark_step_started` calls for the same run to ensure idempotent step tracking while allowing retries.
 
 ### Rationale
 - Guarantees crash recovery and auditing through persisted state.
@@ -42,9 +42,9 @@ Use dependency injection at message reception rather than modifying the routing 
 - Demonstrates repository usage in existing workflows without altering business logic.
 
 ### Implementation
-- Added unique constraint and `INSERT OR IGNORE` semantics to SQLite repository.
+- Added `run_id` column and `INSERT OR IGNORE` semantics to SQLite repository, with matching changes for PostgreSQL.
 - Extended single and multi‑agent integration tests to use `SQLiteWorkflowRepository` and assert persisted workflow state and activity registry availability.
-- Added repository unit test covering duplicate updates.
+- Added repository unit tests covering duplicate updates and multiple step runs.
 
 ### Alternatives Considered
 - Allowing duplicate step inserts and cleaning them later – rejected due to harder querying and audit noise.
