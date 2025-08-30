@@ -170,3 +170,21 @@ class SQLiteWorkflowRepository(WorkflowRepository):
             status=row["status"],
             steps=steps,
         )
+
+    async def list_workflows(self) -> list[WorkflowInstance]:
+        rows = await asyncio.to_thread(
+            self._fetchall,
+            "SELECT correlation_id, routing_slip, payload, status FROM workflows",
+        )
+        workflows: list[WorkflowInstance] = []
+        for row in rows:
+            workflows.append(
+                WorkflowInstance(
+                    correlation_id=row["correlation_id"],
+                    routing_slip=json.loads(row["routing_slip"]),
+                    payload=json.loads(row["payload"]) if row["payload"] else None,
+                    status=row["status"],
+                    steps=[],
+                )
+            )
+        return workflows

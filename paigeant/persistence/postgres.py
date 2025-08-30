@@ -172,3 +172,22 @@ class PostgresWorkflowRepository(WorkflowRepository):
             status=row["status"],
             steps=steps,
         )
+
+    async def list_workflows(self) -> list[WorkflowInstance]:
+        conn = await self._connect()
+        try:
+            rows = await conn.fetch(
+                "SELECT correlation_id, routing_slip, payload, status FROM workflows"
+            )
+        finally:
+            await conn.close()
+        return [
+            WorkflowInstance(
+                correlation_id=r["correlation_id"],
+                routing_slip=r["routing_slip"],
+                payload=r["payload"],
+                status=r["status"],
+                steps=[],
+            )
+            for r in rows
+        ]

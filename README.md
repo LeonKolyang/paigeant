@@ -21,6 +21,7 @@ If an agent crashes, the message stays in the queue until a worker handles it.
 - **WorkflowDispatcher** – builds a routing slip and publishes the initial message.
 - **PaigeantAgent** – thin wrapper around `pydantic_ai.Agent` with optional itinerary editing and access to previous outputs.
 - **ActivityExecutor** – worker that subscribes to a topic, runs the agent, and forwards the message.
+- **WorkflowRepository** – optional persistence layer for querying workflow state.
 
 ## Architectural Principles
 1. **Asynchronous communication** – every step is delivered over the transport.
@@ -54,11 +55,25 @@ transport = get_transport()  # in-memory by default, configurable via PAIGEANT_T
 correlation_id = await dispatcher.dispatch_workflow(transport)
 ```
 
+To enable state persistence, set a database URL via `PAIGEANT_DATABASE_URL` or
+`DATABASE_URL`. SQLite is supported out of the box:
+
+```bash
+export PAIGEANT_DATABASE_URL=sqlite:///paigeant.db
+```
+
 ### Run a worker
 An `ActivityExecutor` pulls messages from the transport and executes the agent's activity. Start one using the CLI:
 
 ```bash
 uv run paigeant execute agent
+```
+
+Inspect workflow progress using the CLI:
+
+```bash
+uv run paigeant workflows            # list all workflows
+uv run paigeant workflow <id>        # show details for a workflow
 ```
 
 ## Transports
