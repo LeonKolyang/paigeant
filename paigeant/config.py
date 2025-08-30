@@ -27,6 +27,7 @@ class PaigeantConfig(BaseModel):
     """Top-level configuration model."""
 
     transport: TransportConfig = TransportConfig()
+    database_url: Optional[str] = None
 
 
 def load_config(path: Optional[str] = None) -> PaigeantConfig:
@@ -41,5 +42,11 @@ def load_config(path: Optional[str] = None) -> PaigeantConfig:
     if os.path.exists(config_path):
         with open(config_path) as f:
             data = yaml.safe_load(f) or {}
-        return PaigeantConfig(**data)
-    return PaigeantConfig()
+        config = PaigeantConfig(**data)
+    else:
+        config = PaigeantConfig()
+
+    env_db_url = os.getenv("PAIGEANT_DATABASE_URL") or os.getenv("DATABASE_URL")
+    if env_db_url:
+        config.database_url = env_db_url
+    return config

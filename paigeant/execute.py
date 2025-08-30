@@ -21,7 +21,7 @@ from .contracts import (
     PreviousOutput,
     WorkflowDependencies,
 )
-from .persistence import WorkflowRepository
+from .persistence import WorkflowRepository, get_repository
 from .transports import BaseTransport
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class ActivityExecutor:
         self._agent_name = agent_name
         self.agent: Agent = discover_agent(agent_name, base_path)
         self.executed_activities = []
-        self._repository = repository
+        self._repository = repository or get_repository()
 
     def extract_activity(self, message: PaigeantMessage) -> ActivitySpec:
         """Return the next activity from the message's routing slip."""

@@ -18,7 +18,7 @@ from .contracts import (
     SerializedDeps,
 )
 from .deps.serializer import DependencySerializer
-from .persistence import WorkflowRepository
+from .persistence import WorkflowRepository, get_repository
 from .transports import BaseTransport
 
 
@@ -105,6 +105,7 @@ class WorkflowDispatcher:
             activity_registry=self._activity_registry,
         )
 
+        repository = repository or get_repository()
         if repository is not None:
             try:
                 await repository.create_workflow(

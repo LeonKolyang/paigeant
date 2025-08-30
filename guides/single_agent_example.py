@@ -10,6 +10,7 @@ from paigeant import (
     PaigeantAgent,
     WorkflowDependencies,
     WorkflowDispatcher,
+    get_repository,
     get_transport,
 )
 
@@ -57,6 +58,7 @@ async def main():
     print("Running joke selection agent with paigeant workflow...")
     # Setup workflow infrastructure
     transport = get_transport()
+    repository = get_repository()
 
     http_key = HttpKey(api_key="foobar")
     deps = JokeWorkflowDeps(
@@ -70,6 +72,8 @@ async def main():
     )
 
     correlation_id = await dispatcher.dispatch_workflow(transport)
+    wf = await repository.get_workflow(correlation_id)
+    print("Persisted status:", wf.status)
 
 
 if __name__ == "__main__":

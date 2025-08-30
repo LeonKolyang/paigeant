@@ -32,3 +32,6 @@ async def test_sqlite_repository_crud(tmp_path):
     assert step.step_name == "step1"
     assert step.status == "completed"
     assert step.output == {"x": 1}
+
+    all_wfs = await repo.list_workflows()
+    assert any(w.correlation_id == corr_id for w in all_wfs)

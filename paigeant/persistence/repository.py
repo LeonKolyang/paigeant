@@ -40,3 +40,6 @@ class WorkflowRepository(Protocol):
 
     async def get_workflow(self, correlation_id: str) -> WorkflowInstance | None:
         """Retrieve the workflow instance by id."""
+
+    async def list_workflows(self) -> list[WorkflowInstance]:
+        """Return all persisted workflows."""

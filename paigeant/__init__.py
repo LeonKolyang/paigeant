@@ -5,6 +5,7 @@ from .contracts import ActivitySpec, PaigeantMessage, RoutingSlip, WorkflowDepen
 from .dispatch import WorkflowDispatcher
 from .execute import ActivityExecutor
 from .transports import get_transport
+from .persistence import get_repository
 
 __version__ = "0.1.0"
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "PaigeantMessage",
     "WorkflowDispatcher",
     "get_transport",
+    "get_repository",
     "PaigeantAgent",
     "WorkflowDependencies",
 ]
