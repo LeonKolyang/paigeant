@@ -11,7 +11,7 @@ Paigeant offers the runway for Pydantic AI agents to show off, let them dive int
 - 💾 **Always a backup** – Workflow state travels with the message, if an agent slipped, they can pick up right where they left.
 - 🔐 **Gossip-safe environment** – Built-in OAuth 2.0 on-behalf-of tokens and JSON Web Signatures ensure that secrets stay between agents.
 - 👯 **Self-guided choreography** – Workflow execution without an orchestrator, agents pass a routing slip around, keeping everyone up to date.
-- 👠 **Flexible runway** – Agents can communicate with in-memory, Redis or RabbitMQ transport. To customize for special shows, the `BaseTransport` allows to bring your own broker.
+- 👠 **Flexible runway** – Agents can communicate with in-memory, Redis or RabbitMQ transport. To customize for special shows, the `BaseTransport` class allows to bring your own broker.
 - 🎯 **Easy to manage** – A FastAPI-style API, dependency injection, and a CLI make it easy to setup your own show.
 
 ## Quick Start
