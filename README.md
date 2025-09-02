@@ -1,97 +1,148 @@
 # Paigeant
 
-Durable workflow orchestration for AI agents.
+**Durable, asynchronous workflows for distributed AI agents**
 
-Paigeant lets independent `pydantic-ai` agents coordinate through a message queue. Each workflow step is delivered as a message that carries its own routing slip and payload, allowing execution to resume after crashes or deployments.
+Paigeant offers the runway for Pydantic AI agents to show off. It offers the runway for agents to dive into long running tasks, dynamically bring other agents into the show and have a backup ready whenever they fail. 
 
-## Problem
-Synchronous agent calls like `Agent A -> Agent B -> Agent C` fail if any agent is unavailable.
+## What does the show have to offer?
 
-## Solution
-Paigeant moves workflow state into messages and delivers each step through a transport queue:
-
-`Agent A -> queue -> Agent B -> queue -> Agent C`
-
-If an agent crashes, the message stays in the queue until a worker handles it.
-
-## Core Components
-- **Routing Slip** – ordered list of `ActivitySpec` items. Tracks executed steps.
-- **PaigeantMessage** – envelope containing routing slip, payload, and correlation metadata.
-- **Transport** – delivers messages. The library ships with in-memory and Redis implementations.
-- **WorkflowDispatcher** – builds a routing slip and publishes the initial message.
-- **PaigeantAgent** – thin wrapper around `pydantic_ai.Agent` with optional itinerary editing and access to previous outputs.
-- **ActivityExecutor** – worker that subscribes to a topic, runs the agent, and forwards the message.
-- **WorkflowRepository** – optional persistence layer for querying workflow state.
-
-## Architectural Principles
-1. **Asynchronous communication** – every step is delivered over the transport.
-2. **Durable execution** – workflow state lives in the message; workers can crash without losing progress.
-3. **Composability** – activities are small Python functions or agents; additional steps can be inserted at runtime when `can_edit_itinerary` is enabled.
-
-## Features
-- Asynchronous, message-driven workflows
-- Routing slip model with previous-output injection
-- Optional itinerary editing: agents can insert additional steps
-- Transport abstraction with in-memory and Redis backends
-- Minimal dependencies and `pydantic-ai` integration
-- Experimental persistence via SQLite or PostgreSQL (opt-in)
+- 🕒 **Perfect timing** – Each agent get's the time and space they need with asynchronous workflows, fully decoupled from each other.
+- 🌍 **Full backstage visibility** – Agents know about available agents and activities and can add them dynamically to the show. 
+- 💾 **Always a backup** – Workflow state travels with the message, so if an agent slipped, they can pick up right where they left.
+- 🔐 **Gossip-safe environment** – Built-in OAuth 2.0 on-behalf-of tokens and JSON Web Signatures ensure that secrets stay between agents.
+- 👯 **Self-guided choreography** – Workflow execution without an orchestrator, agents pass a routing slip around, keeping everyone up to date.
+- 👠 **Flexible runway** – Agents can communicate with in-memory, Redis or RabbitMQ transport. To customize for special shows, the `BaseTransport` allows to bring your own broker.
+- 🎯 **Easy to manage** – A FastAPI-style API, dependency injection, and a CLI make it easy to setup your own show.
 
 ## Quick Start
+
+Install with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv add paigeant
 ```
 
-### Define and dispatch a workflow
-Use `WorkflowDispatcher` to build the routing slip and `PaigeantAgent` to register activities. Dispatch the workflow to your chosen transport:
+Or via pip:
+
+```bash
+pip install paigeant
+```
+
+### Define a workflow and dispatch it
 
 ```python
-from paigeant import PaigeantAgent, WorkflowDispatcher, get_transport, WorkflowDependencies
+# joke_builder.py
+from paigeant import PaigeantAgent, WorkflowDispatcher, WorkflowDependencies, get_transport    
+from slack_sdk.web.async_client import AsyncWebClient
 
 dispatcher = WorkflowDispatcher()
-agent = PaigeantAgent("anthropic:claude-3-5", dispatcher=dispatcher, deps_type=WorkflowDependencies)
-agent.add_to_runway(prompt="do work", deps=WorkflowDependencies())
 
-transport = get_transport()  # in-memory by default, configurable via PAIGEANT_TRANSPORT or config.yaml
-correlation_id = await dispatcher.dispatch_workflow(transport)
+# Two agents which will be out on the runway
+extractor = PaigeantAgent(
+    "anthropic:claude-3-5",
+    output_type=str,
+    deps_type=WorkflowDependencies,
+    dispatcher=dispatcher,
+    name="extractor"
+)
+writer = PaigeantAgent(
+    "openrouter:gpt-4o-mini",
+    output_type=str,
+    deps_type=WorkflowDependencies,
+    dispatcher=dispatcher,
+    can_edit_itinerary=True,
+    name="writer"
+)
+
+# Helper agent registered waiting backstage
+notifier = PaigeantAgent(
+    "openrouter:gpt-4o-mini",
+    deps_type=WorkflowDependencies
+    dispatcher=dispatcher, 
+    name="notifier-agent", 
+    )
+
+@notifier.tool
+async def send_joke_to_slack(ctx: RunContext[WorkflowDependencies]):
+    client = AsyncWebClient(token=os.environ['SLACK_BOT_TOKEN'])
+    await client.chat_postMessage(channel="team-dad-jokes", text=ctx.previous_output)
+
+async def main():
+    # Agents added to the main show (aka workflow)
+    extractor.add_to_runway(prompt="Come up with a topic for a joke", deps=WorkflowDependencies())
+    writer.add_to_runway(
+        prompt="""
+        Write a joke about the topic.
+        If the joke is a dad joke, send it to slack with the notifier agent.
+        Don't want to miss that.
+        """,
+        deps=WorkflowDependencies(),
+    )
+
+    # Agent getting ready to be called out
+    notifier.register_activity(prompt="Post the joke to Slack", deps=WorkflowDependencies())
+
+    # Trigger the workflow run to start the show
+    transport = get_transport()  
+    correlation_id = await dispatcher.dispatch_workflow(transport)
+    print("Workflow with correlation id {correlation_id} kicked off.")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-To enable experimental state persistence, set a database URL via
-`PAIGEANT_DATABASE_URL` or `DATABASE_URL`. SQLite is supported out of the
-box:
+Start a worker for each agent, for example on the same device or each in their own thread, process, deployment, etc:
 
 ```bash
-export PAIGEANT_DATABASE_URL=sqlite:///paigeant.db
+uv run paigeant execute extractor
+uv run paigeant execute writer
+uv run paigeant execute notifier-agent
 ```
 
-### Run a worker
-An `ActivityExecutor` pulls messages from the transport and executes the agent's activity. Start one using the CLI:
+Trigger the workflow:
+```bash
+uv run python joke_builder.py
+```
+
+Inspect workflow status:
 
 ```bash
-uv run paigeant execute agent
+uv run paigeant workflows
+uv run paigeant workflow <correlation_id>
 ```
 
-Inspect workflow progress using the CLI:
+## Core Concepts
 
-```bash
-uv run paigeant workflows            # list all workflows
-uv run paigeant workflow <id>        # show details for a workflow
-```
+- 🗺️ **Routing Slip** – ordered list of `ActivitySpec` items representing the remaining itinerary and logs of executed steps.
+- ✉️ **PaigeantMessage** – the envelope exchanged over the broker containing the routing slip, payload, correlation ID, trace context, and optional security fields.
+- 📮 **Transport** – abstracts the broker. Ships with in-memory, Redis and RabbitMQ implementations.
+- 🤖 **PaigeantAgent** – lightweight wrapper around `pydantic_ai.Agent` that can access previous outputs and optionally edit the itinerary.
+- 👷 **ActivityExecutor** – worker that subscribes to a queue, runs the agent, and forwards the message.
 
-## Transports
-The library currently supports in-memory queues for testing and Redis lists for cross-process messaging. Other brokers can be added by implementing `BaseTransport`.
+## Use Cases
 
-## Development
-```bash
-uv pip install -e .[test]
-uv run pytest -q
-```
+- 🌐 **Distributed AI workflows** – Coordinate microservices or serverless functions without brittle RPC chains.
+- ⏱️ **Long-running and resilient workflows** – Durable messaging ensures progress survives restarts or failures.
+- 🔄 **Dynamic itineraries** – Agents can insert follow-up steps based on intermediate results or user input.
+- 🤝 **Federated architectures** – Combine `pydantic-ai` and `pydantic-graph` for complex in-process logic while using Paigeant for cross-service orchestration.
 
-## Project Status
-Early development. Implemented components: message contracts, workflow dispatcher,
-activity executor, `PaigeantAgent`, in-memory transport, Redis transport, and an
-experimental persistence layer.
+## Roadmap
+
+- 📇 **Dynamic registry and service discovery** – Central registry so agents can publish capabilities and planners can assemble workflows without pre-configuration.
+- ↩️ **Robust retries and compensation** – Exponential backoff, dead-letter queues, and Saga-style rollback for resilience.
+- 🕸️ **Parallel execution** – Scatter-gather patterns to run tasks concurrently with an aggregator step.
+- 🌍 **Cross-language interoperability** – JSON Schema definitions for message and routing-slip formats to support TypeScript, .NET, Rust, and more.
+- 👀 **Enhanced observability** – Built-in distributed tracing today; metrics and dashboards on the horizon.
+
+## Contributing
+
+Paigeant is open source under the MIT License. Contributions welcome!
+
+- 🐞 Report bugs and request features via GitHub Issues.
+- 🔧 Submit PRs with new transports, registry improvements, or examples.
+- 📖 Check the design docs under `misc/design` for deeper architectural insights.
 
 ## License
+
 MIT
 
