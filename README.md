@@ -2,7 +2,7 @@
 
 **Durable, asynchronous workflows for distributed AI agents**
 
-Paigeant offers the runway for Pydantic AI agents to show off. They can dive into long running tasks, dynamically bring other agents into the show and have a backup ready whenever they fail. 
+Paigeant offers the runway for Pydantic AI agents to show off, let them dive into long running tasks, dynamically bring other agents into the show and have a backup ready whenever they fail. 
 
 ## What does the show have to offer?
 
