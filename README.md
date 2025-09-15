@@ -15,6 +15,9 @@ Paigeant offers the runway for Pydantic AI agents to show off, let them dive int
 - 🎯 **Easy to manage** – A FastAPI-style API, dependency injection, and a CLI make it easy to setup your own show.
 
 ## Quick Start
+> [!IMPORTANT]
+> Pypi package is coming soon! For now:   
+> Clone the repository, run `uv sync` and call `uv run paigeant` from the root of this project.
 
 Install with [uv](https://docs.astral.sh/uv/):
 
