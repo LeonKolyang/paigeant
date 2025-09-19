@@ -108,6 +108,7 @@ A comprehensive overview of all functional features available in the Paigeant li
 | **Observability** | ✅ Logging | ✅ Tracing | 🔜 Metrics, Dashboards |
 | **Execution** | ✅ Sequential | ✅ Durable | 🔜 Parallel, Compensation |
 | **Discovery** | ✅ Static | 🔜 Dynamic | 🔜 Service Mesh |
+| **Context** | ✅ RoutingSlip | 🔜 Agent Memory |
 
 ## Planned Features
 
@@ -116,6 +117,7 @@ A comprehensive overview of all functional features available in the Paigeant li
 - **Enhanced Retry Logic**: Exponential backoff and dead letter queues
 - **Dynamic Service Discovery**: Central registry for agent capabilities
 - **Compensation Patterns**: Saga-style rollback for failed workflows
+- **Agent Memory**: Extended memory and context capability for agents, eg provisioned by [AgentCore](https://aws.plainenglish.io/adding-memory-to-your-agentic-applications-using-agentcore-memory-eb8eefae2dc4)
 
 ### Medium Term (v0.4.x)
 - **Additional Transports**: RabbitMQ, Apache Kafka, Azure Service Bus
