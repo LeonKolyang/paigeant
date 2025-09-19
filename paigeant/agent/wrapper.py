@@ -11,6 +11,7 @@ from paigeant.contracts import ActivitySpec, WorkflowDependencies
 
 from ..constants import DEFAULT_ITINERARY_EDIT_LIMIT
 from ..dispatch import WorkflowDispatcher
+from ..registry import AgentDescriptor, SemanticVersion, register_agent
 from ..tools import _edit_itinerary, _extract_previous_output, _itinerary_editing_prompt
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,14 @@ class PaigeantAgent(Agent):
         self.dispatcher._agent_registry[self.agent_id] = {}
         if getattr(self, "name", None):
             AGENT_REGISTRY[self.name] = self
+            # Record this agent in the global registry for discovery purposes.
+            descriptor = AgentDescriptor(
+                name=self.name,
+                version=SemanticVersion(major=0, minor=0, patch=0),
+                transport="internal",
+                address=self.name,
+            )
+            register_agent(descriptor)
 
     def add_to_runway(
         self,
