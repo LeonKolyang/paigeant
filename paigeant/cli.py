@@ -1,13 +1,20 @@
 """Command line interface for running Paigeant workers."""
 
+from __future__ import annotations
+
 import asyncio
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional, Set
 
 import typer
 
 from paigeant import ActivityExecutor, get_repository, get_transport
-from paigeant.agent.discovery import discover_agent
+from paigeant.cli_utils.workflow import (
+    _analyze_workflow_file,
+    _format_workflow_path,
+    _load_gitignore_patterns,
+    _should_ignore_path,
+)
 
 app = typer.Typer(help="CLI for Paigeant workflows")
 
@@ -127,7 +134,12 @@ def workflow_show(correlation_id: str) -> None:
 
 
 @workflow_app.command("discover")
-def workflow_discover(path: Optional[Path] = None) -> None:
+def workflow_discover(
+    path: Optional[Path] = None,
+    respect_gitignore: bool = typer.Option(
+        True, help="Skip files and directories specified in .gitignore files"
+    ),
+) -> None:
     """
     Find workflow definition files in directory.
 
@@ -136,22 +148,75 @@ def workflow_discover(path: Optional[Path] = None) -> None:
 
     Args:
         path: Directory to scan (default: current directory)
+        respect_gitignore: Skip files and directories specified in .gitignore files (default: True)
 
     Returns:
         List of discovered workflows with file paths and metadata
 
     Example:
         paigeant workflow discover
+        paigeant workflow discover --no-respect-gitignore
         # Output: ./examples/joke_workflow.py - Multi-agent joke generation
         #         Agents: topic_extractor, joke_generator, joke_selector
         #         Dependencies: HttpKey, JokeWorkflowDeps
     """
-    search_path = path or Path.cwd()
+    search_path = (path or Path.cwd()).expanduser().resolve()
     typer.echo(f"Discovering workflows in: {search_path}")
-    typer.echo("TODO: Implement AST-based workflow discovery")
-    typer.echo("- Scan Python files for WorkflowDispatcher patterns")
-    typer.echo("- Extract agent names and workflow metadata")
-    typer.echo("- Cache results for dispatch command")
+
+    if not search_path.exists():
+        typer.secho("Specified path does not exist", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    # Load gitignore patterns if requested
+    gitignore_patterns: Set[str] = set()
+    if respect_gitignore:
+        gitignore_patterns = _load_gitignore_patterns(search_path)
+
+    python_files: Iterable[Path]
+    if search_path.is_file():
+        python_files = [search_path]
+    else:
+        all_python_files = sorted(search_path.rglob("*.py"))
+        if respect_gitignore:
+            python_files = [
+                f
+                for f in all_python_files
+                if not _should_ignore_path(f, gitignore_patterns, search_path)
+            ]
+        else:
+            python_files = all_python_files
+
+    discoveries = []
+    for py_file in python_files:
+        if py_file.is_dir():
+            continue
+        try:
+            metadata = _analyze_workflow_file(py_file)
+        except SyntaxError as exc:
+            typer.secho(
+                f"Skipping {py_file}: syntax error at line {exc.lineno}",
+                fg=typer.colors.RED,
+            )
+            continue
+        except OSError as exc:
+            typer.secho(f"Skipping {py_file}: {exc}", fg=typer.colors.RED)
+            continue
+
+        if metadata is not None:
+            discoveries.append(metadata)
+
+    if not discoveries:
+        typer.echo("No workflows discovered.")
+        return
+
+    for item in discoveries:
+        display_path = _format_workflow_path(item["path"], search_path)
+        description = item["description"] or "No description found"
+        agents = item["agents"] or ["(none found)"]
+        dependencies = item["dependencies"] or ["(none found)"]
+        typer.echo(f"{display_path} - {description}")
+        typer.echo(f"  Agents: {', '.join(agents)}")
+        typer.echo(f"  Dependencies: {', '.join(dependencies)}")
 
 
 @workflow_app.command("dispatch")
