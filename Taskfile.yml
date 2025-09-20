@@ -30,7 +30,7 @@ tasks:
     env:
       PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
     cmds:
-      - "{{.PAIGEANT_CMD}} execute 'joke_generation_agent'"
+      - "{{.PAIGEANT_CMD}} agent execute 'joke_generation_agent'"
 
   # Multi Agent Example Tasks
   multi-agent:
@@ -49,7 +49,7 @@ tasks:
     env:
       PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
     cmds:
-      - "{{.PAIGEANT_CMD}} execute 'topic_extractor_agent'"
+      - "{{.PAIGEANT_CMD}} agent execute 'topic_extractor_agent'"
 
   multi-agent-worker:joke-generator:
     desc: "Run joke generator agent worker for multi-agent example"
@@ -58,7 +58,7 @@ tasks:
     env:
       PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
     cmds:
-      - "{{.PAIGEANT_CMD}} execute 'joke_generator_agent'"
+      - "{{.PAIGEANT_CMD}} agent execute 'joke_generator_agent'"
 
   multi-agent-worker:joke-selector:
     desc: "Run joke selector agent worker for multi-agent example"
@@ -67,7 +67,16 @@ tasks:
     env:
       PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
     cmds:
-      - "{{.PAIGEANT_CMD}} execute 'joke_selector_agent'"
+      - "{{.PAIGEANT_CMD}} agent execute 'joke_selector_agent'"
+
+  multi-agent-worker:joke-forwarder:
+    desc: "Run joke forwarder agent worker for dynamic-agent example"
+    deps:
+      - redis-test
+    env:
+      PAIGEANT_TRANSPORT: "{{.TRANSPORT}}"
+    cmds:
+      - "{{.PAIGEANT_CMD}} agent execute 'joke_forwarder_agent'"
 
   # Convenience tasks for running all workers
   single-agent-workers:
@@ -81,6 +90,14 @@ tasks:
       - multi-agent-worker:topic-extractor
       - multi-agent-worker:joke-generator
       - multi-agent-worker:joke-selector
+
+  dynamic-agent-workers:
+    desc: "Start all dynamic-agent workers in parallel"
+    deps:
+      - multi-agent-worker:topic-extractor
+      - multi-agent-worker:joke-generator
+      - multi-agent-worker:joke-selector
+      - multi-agent-worker:joke-forwarder
 
   # Development and testing tasks
   test:

@@ -23,6 +23,7 @@ def _run_agent_process(agent_name: str, executed, errors):
     result = runner.invoke(
         app,
         [
+            "agent",
             "execute",
             agent_name,
             "--lifespan",

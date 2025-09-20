@@ -55,7 +55,7 @@ async def get_jokes(ctx: RunContext[JokeWorkflowDeps], count: int) -> str:
 
 
 async def main():
-    print("Running joke selection agent with paigeant workflow...")
+    print("Running joke generation agent with paigeant workflow...")
     # Setup workflow infrastructure
     transport = get_transport()
     repository = get_repository()

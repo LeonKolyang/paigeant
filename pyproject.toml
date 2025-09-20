@@ -24,6 +24,9 @@ dev = [
     "redis>=6.2.0",
     "rq>=2.4.1",
 ]
+redis = [
+    "redis>=6.2.0",
+]
 
 [dependency-groups]
 test = [
