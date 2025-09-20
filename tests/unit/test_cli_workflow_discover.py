@@ -1,29 +1,7 @@
 from __future__ import annotations
 
-import sys
 import textwrap
-import types
 from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-
-# if "paigeant" not in sys.modules:
-#     fake_paigeant = types.ModuleType("paigeant")
-#     fake_paigeant.ActivityExecutor = object
-#     fake_paigeant.get_repository = lambda: None
-#     fake_paigeant.get_transport = lambda: None
-#     fake_paigeant.__path__ = [str(BASE_DIR / "paigeant")]
-#     sys.modules["paigeant"] = fake_paigeant
-
-#     fake_agent_pkg = types.ModuleType("paigeant.agent")
-#     fake_agent_pkg.__path__ = [str(BASE_DIR / "paigeant" / "agent")]
-#     sys.modules["paigeant.agent"] = fake_agent_pkg
-
-#     fake_agent_discovery = types.ModuleType("paigeant.agent.discovery")
-#     fake_agent_discovery.discover_agent = lambda *args, **kwargs: None
-#     sys.modules["paigeant.agent.discovery"] = fake_agent_discovery
-#     fake_agent_pkg.discovery = fake_agent_discovery
-#     fake_paigeant.agent = fake_agent_pkg
 
 from typer.testing import CliRunner
 
