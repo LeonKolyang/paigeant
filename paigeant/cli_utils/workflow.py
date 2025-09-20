@@ -4,7 +4,160 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Set
+import fnmatch
+
+
+def _load_gitignore_patterns(search_path: Path) -> Set[str]:
+    """Load gitignore patterns from .gitignore files in the search path and its parents."""
+    patterns: Set[str] = set()
+
+    # Common patterns to always ignore
+    default_patterns = {
+        "__pycache__/",
+        "*.pyc",
+        "*.pyo",
+        "*.pyd",
+        ".Python",
+        "build/",
+        "develop-eggs/",
+        "dist/",
+        "downloads/",
+        "eggs/",
+        ".eggs/",
+        "lib/",
+        "lib64/",
+        "parts/",
+        "sdist/",
+        "var/",
+        "wheels/",
+        "*.egg-info/",
+        ".installed.cfg",
+        "*.egg",
+        ".git/",
+        ".gitignore",
+    }
+    patterns.update(default_patterns)
+
+    # Walk up the directory tree looking for .gitignore files
+    current_path = search_path
+    while current_path != current_path.parent:
+        gitignore_file = current_path / ".gitignore"
+        if gitignore_file.exists():
+            try:
+                with open(gitignore_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            patterns.add(line)
+            except (OSError, UnicodeDecodeError):
+                # Skip files we can't read
+                pass
+        current_path = current_path.parent
+
+    return patterns
+
+
+def _should_ignore_path(path: Path, patterns: Set[str], base_path: Path) -> bool:
+    """Check if a path should be ignored based on gitignore patterns."""
+    try:
+        relative_path = path.relative_to(base_path)
+    except ValueError:
+        # Path is not relative to base_path, don't ignore
+        return False
+
+    # Check against all patterns
+    path_str = str(relative_path)
+    path_parts = relative_path.parts
+
+    for pattern in patterns:
+        # Handle directory patterns (ending with /)
+        if pattern.endswith("/"):
+            pattern_no_slash = pattern[:-1]
+            # Check if any part of the path matches the directory pattern
+            for part in path_parts:
+                if fnmatch.fnmatch(part, pattern_no_slash):
+                    return True
+            # Also check the full relative path
+            if fnmatch.fnmatch(path_str, pattern_no_slash):
+                return True
+        else:
+            # Check filename patterns
+            if fnmatch.fnmatch(path.name, pattern) or fnmatch.fnmatch(
+                path_str, pattern
+            ):
+                return True
+            # Check if any parent directory matches
+            for part in path_parts:
+                if fnmatch.fnmatch(part, pattern):
+                    return True
+
+    return False
+
+
+def _analyze_workflow_file(path: Path) -> Optional[dict[str, object]]:
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(path))
+    analyzer = _WorkflowModuleAnalyzer()
+    analyzer.visit(tree)
+
+    if not analyzer.found_dispatcher:
+        return None
+
+    docstring = ast.get_docstring(tree) or ""
+    description = docstring.strip().splitlines()[0] if docstring.strip() else ""
+
+    agent_names: list[str] = []
+    for info in analyzer.agent_infos:
+        name = info.get("name")
+        if isinstance(name, str) and name:
+            if name not in agent_names:
+                agent_names.append(name)
+            continue
+        variables = info.get("variables") or []
+        if isinstance(variables, list):
+            for variable in variables:
+                if (
+                    isinstance(variable, str)
+                    and variable
+                    and variable not in agent_names
+                ):
+                    agent_names.append(variable)
+                    break
+
+    deps: list[str] = []
+    for info in analyzer.agent_infos:
+        deps_name = info.get("deps_type")
+        if isinstance(deps_name, str) and deps_name and deps_name not in deps:
+            deps.append(deps_name)
+    for cls_name in analyzer.dependency_classes:
+        if cls_name not in deps:
+            deps.append(cls_name)
+
+    return {
+        "path": path,
+        "description": description,
+        "agents": agent_names,
+        "dependencies": deps,
+    }
+
+
+def _format_workflow_path(path: Path, search_path: Path) -> str:
+    resolved_path = path.resolve()
+    candidate_bases = []
+    if search_path.is_dir():
+        candidate_bases.append(search_path.resolve())
+    else:
+        candidate_bases.append(search_path.parent.resolve())
+    candidate_bases.append(Path.cwd())
+
+    for base in candidate_bases:
+        try:
+            rel = resolved_path.relative_to(base)
+            return f"./{rel}"
+        except ValueError:
+            continue
+    return str(path)
 
 
 class _WorkflowModuleAnalyzer(ast.NodeVisitor):
@@ -132,68 +285,3 @@ class _WorkflowModuleAnalyzer(ast.NodeVisitor):
                 if deps_name:
                     info["deps_type"] = deps_name
         return info
-
-
-def _analyze_workflow_file(path: Path) -> Optional[dict[str, object]]:
-    source = path.read_text(encoding="utf-8")
-    tree = ast.parse(source, filename=str(path))
-    analyzer = _WorkflowModuleAnalyzer()
-    analyzer.visit(tree)
-
-    if not analyzer.found_dispatcher:
-        return None
-
-    docstring = ast.get_docstring(tree) or ""
-    description = docstring.strip().splitlines()[0] if docstring.strip() else ""
-
-    agent_names: list[str] = []
-    for info in analyzer.agent_infos:
-        name = info.get("name")
-        if isinstance(name, str) and name:
-            if name not in agent_names:
-                agent_names.append(name)
-            continue
-        variables = info.get("variables") or []
-        if isinstance(variables, list):
-            for variable in variables:
-                if (
-                    isinstance(variable, str)
-                    and variable
-                    and variable not in agent_names
-                ):
-                    agent_names.append(variable)
-                    break
-
-    deps: list[str] = []
-    for info in analyzer.agent_infos:
-        deps_name = info.get("deps_type")
-        if isinstance(deps_name, str) and deps_name and deps_name not in deps:
-            deps.append(deps_name)
-    for cls_name in analyzer.dependency_classes:
-        if cls_name not in deps:
-            deps.append(cls_name)
-
-    return {
-        "path": path,
-        "description": description,
-        "agents": agent_names,
-        "dependencies": deps,
-    }
-
-
-def _format_workflow_path(path: Path, search_path: Path) -> str:
-    resolved_path = path.resolve()
-    candidate_bases = []
-    if search_path.is_dir():
-        candidate_bases.append(search_path.resolve())
-    else:
-        candidate_bases.append(search_path.parent.resolve())
-    candidate_bases.append(Path.cwd())
-
-    for base in candidate_bases:
-        try:
-            rel = resolved_path.relative_to(base)
-            return f"./{rel}"
-        except ValueError:
-            continue
-    return str(path)
