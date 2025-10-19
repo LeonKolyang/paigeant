@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
-from ._ast_utils import MISSING, get_expr_name, literal_value, node_span
+from ._ast_utils import get_expr_name, node_span
 from .base_inspector import BaseInspector
 from .entities import AgentDefinition, DependencyDefinition, DiscoverySource, SourceSpan
 
@@ -19,9 +19,6 @@ class _AgentCandidate(BaseModel):
     dispatcher: Optional[str] = None
     deps_type: Optional[str] = None
     deps_expr: Optional[str] = None
-    literal_args: tuple[Any, ...] = ()
-    literal_kwargs: dict[str, Any] = Field(default_factory=dict)
-    factory_name: Optional[str] = None
     span: Optional[SourceSpan] = None
 
     model_config = ConfigDict(frozen=True)
@@ -46,24 +43,31 @@ class AgentModuleInspector(BaseInspector):
     # Assignment handling
     # ------------------------------------------------------------------
     def visit_Assign(self, node: ast.Assign) -> None:
-        value = node.value
-        if self._collect_exports(node.targets, value):
+        if self._handle_assignment(node.value, node.targets):
             return
-        if self.call_matches(value, "PaigeantAgent"):
-            assigned = self.assigned_names(node.targets)
-            self._candidates.append(self._parse_agent_call(value, assigned))
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        value = node.value
-        if value and self.call_matches(value, "PaigeantAgent"):
-            assigned = self.assigned_names((node.target,))
-            self._candidates.append(self._parse_agent_call(value, assigned))
+        if self._handle_assignment(node.value, (node.target,)):
+            return
         self.generic_visit(node)
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+    def _handle_assignment(
+        self, value: ast.AST | None, targets: Iterable[ast.AST]
+    ) -> bool:
+        if value is None:
+            return False
+        if self._collect_exports(targets, value):
+            return True
+        if self.call_matches(value, "PaigeantAgent"):
+            assigned = self.assigned_names(targets)
+            self._candidates.append(self._parse_agent_call(value, assigned))
+            return True
+        return False
+
     def _collect_exports(self, targets: Iterable[ast.AST], value: ast.AST) -> bool:
         """Record ``__all__`` assignments for export awareness."""
 
@@ -90,7 +94,6 @@ class AgentModuleInspector(BaseInspector):
         dispatcher: Optional[str] = None
         deps_type: Optional[str] = None
         deps_expr: Optional[str] = None
-        literal_kwargs: dict[str, Any] = {}
 
         for keyword in call.keywords:
             if keyword.arg is None:
@@ -104,16 +107,6 @@ class AgentModuleInspector(BaseInspector):
                 deps_type = get_expr_name(keyword.value)
             elif keyword.arg == "deps":
                 deps_expr = get_expr_name(keyword.value)
-            else:
-                value = literal_value(keyword.value)
-                if value is not MISSING:
-                    literal_kwargs[keyword.arg] = value
-
-        literal_args = []
-        for arg in call.args:
-            value = literal_value(arg)
-            if value is not MISSING:
-                literal_args.append(value)
 
         candidate = _AgentCandidate(
             assigned_names=assigned_names,
@@ -121,9 +114,6 @@ class AgentModuleInspector(BaseInspector):
             dispatcher=dispatcher,
             deps_type=deps_type,
             deps_expr=deps_expr,
-            literal_args=tuple(literal_args),
-            literal_kwargs=literal_kwargs,
-            factory_name=get_expr_name(call.func),
             span=node_span(call),
         )
         return candidate
@@ -137,15 +127,6 @@ class AgentModuleInspector(BaseInspector):
             agent_name = self._resolve_agent_name(candidate, index)
             dependencies = self._build_dependencies(candidate)
             exports = self._resolve_exports(candidate.assigned_names)
-            attributes: dict[str, Any] = {}
-            if candidate.factory_name:
-                attributes["factory"] = candidate.factory_name
-            if candidate.literal_args:
-                attributes["args"] = list(candidate.literal_args)
-            if candidate.literal_kwargs:
-                attributes["kwargs"] = candidate.literal_kwargs
-            if candidate.assigned_names:
-                attributes.setdefault("assigned_names", list(candidate.assigned_names))
 
             source = DiscoverySource(
                 file_path=self.path,
@@ -159,7 +140,6 @@ class AgentModuleInspector(BaseInspector):
                     dispatcher=candidate.dispatcher,
                     dependencies=dependencies,
                     exports=exports,
-                    attributes=attributes,
                 )
             )
         return tuple(definitions)

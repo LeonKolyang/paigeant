@@ -7,8 +7,6 @@ from typing import Iterable, Optional
 
 from paigeant.discovery import WorkflowDefinition, discover_workflow_in_module
 
-from .fs import _load_gitignore_patterns, _should_ignore_path
-
 
 def _analyze_workflow_file(path: Path) -> Optional[WorkflowDefinition]:
     return discover_workflow_in_module(path)
