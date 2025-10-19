@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -37,8 +36,7 @@ class ImportedSymbol(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-@dataclass(frozen=True)
-class ModuleAgentReport:
+class ModuleAgentReport(BaseModel):
     """Summary of Paigeant agent analysis for a module."""
 
     path: Path
@@ -46,6 +44,8 @@ class ModuleAgentReport:
     definitions: tuple[AgentDefinition, ...]
     export_names: tuple[str, ...]
     imported_symbols: tuple[ImportedSymbol, ...]
+
+    model_config = ConfigDict(frozen=True)
 
 
 class AgentModuleInspector(BaseInspector):
