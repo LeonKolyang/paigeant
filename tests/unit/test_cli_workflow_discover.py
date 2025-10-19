@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from paigeant.cli import app
 from paigeant.cli_utils.fs import _load_gitignore_patterns, _should_ignore_path
 from paigeant.cli_utils.workflow import _analyze_workflow_file, _format_workflow_path
+from paigeant.discovery import WorkflowDefinition
 
 
 def _write_workflow(path: Path) -> None:
@@ -58,13 +59,15 @@ def test_analyze_workflow_file_collects_metadata(tmp_path):
     workflow_file = tmp_path / "workflow.py"
     _write_workflow(workflow_file)
 
-    metadata = _analyze_workflow_file(workflow_file)
+    definition = _analyze_workflow_file(workflow_file)
 
-    assert metadata is not None
-    assert metadata["path"] == workflow_file
-    assert metadata["description"] == "Example workflow."
-    assert metadata["agents"] == ["primary"]
-    assert metadata["dependencies"] == ["CustomDeps"]
+    assert isinstance(definition, WorkflowDefinition)
+    assert definition.source.file_path == workflow_file
+    assert definition.description == "Example workflow."
+    agent_names = [ref.name for ref in definition.agents if ref.name]
+    dependency_names = [dep.name for dep in definition.dependencies if dep.name]
+    assert agent_names == ["primary"]
+    assert dependency_names == ["CustomDeps"]
 
 
 def test_format_workflow_path_prefers_search_path(tmp_path):
