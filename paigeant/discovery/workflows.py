@@ -39,21 +39,11 @@ class WorkflowModuleInspector(BaseInspector):
     # Assignment handling
     # ------------------------------------------------------------------
     def visit_Assign(self, node: ast.Assign) -> None:  # pragma: no cover - AST
-        value = node.value
-        if self.call_matches(value, "WorkflowDispatcher"):
-            self._mark_dispatcher(node.targets)
-        elif self.call_matches(value, "PaigeantAgent"):
-            assigned = self.assigned_names(node.targets)
-            self._agent_probes.append(self._parse_agent_call(value, assigned))
+        self._handle_assignment(node.value, node.targets)
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # pragma: no cover - AST
-        value = node.value
-        if value and self.call_matches(value, "WorkflowDispatcher"):
-            self._mark_dispatcher((node.target,))
-        elif value and self.call_matches(value, "PaigeantAgent"):
-            assigned = self.assigned_names((node.target,))
-            self._agent_probes.append(self._parse_agent_call(value, assigned))
+        self._handle_assignment(node.value, (node.target,))
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:  # pragma: no cover - AST
@@ -109,6 +99,18 @@ class WorkflowModuleInspector(BaseInspector):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+    def _handle_assignment(
+        self, value: ast.AST | None, targets: Iterable[ast.AST]
+    ) -> None:
+        if value is None:
+            return
+        if self.call_matches(value, "WorkflowDispatcher"):
+            self._mark_dispatcher(targets)
+            return
+        if self.call_matches(value, "PaigeantAgent"):
+            assigned = self.assigned_names(targets)
+            self._agent_probes.append(self._parse_agent_call(value, assigned))
+
     def _mark_dispatcher(self, targets: Iterable[ast.AST]) -> None:
         self.found_dispatcher = True
         for name in self.assigned_names(targets):

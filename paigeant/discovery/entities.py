@@ -51,7 +51,6 @@ class DependencyDefinition(BaseModel):
 
     name: str
     source: Optional[DiscoverySource] = None
-    qualified_name: Optional[str] = None
     kind: Optional[str] = None
 
     model_config = ConfigDict(frozen=True)

@@ -88,13 +88,9 @@ def agent_discover(
         )
         raise typer.Exit(code=1)
 
-    try:
-        discoveries = discover_agents_in_path(
-            search_path, respect_gitignore=respect_gitignore
-        )
-    except FileNotFoundError:
-        typer.secho("Specified path does not exist", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+    discoveries = discover_agents_in_path(
+        search_path, respect_gitignore=respect_gitignore
+    )
 
     if not discoveries:
         typer.echo("No agents discovered.")

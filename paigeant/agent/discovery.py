@@ -38,7 +38,6 @@ def find_agent_in_directory(agent_name: str, base_path: Path) -> Agent:
     try:
         for module in pkgutil.walk_packages([str_base_path]):
             module_name = module.name
-            print(f"Checking module: {module_name}")
             if module_name.startswith("paigeant"):
                 continue
             try:
@@ -46,7 +45,6 @@ def find_agent_in_directory(agent_name: str, base_path: Path) -> Agent:
                 if hasattr(module_obj, agent_name):
                     return getattr(module_obj, agent_name)
             except Exception as e:
-                print(f"Error importing {module_name}, working dir {Path.cwd()}: {e}")
                 continue
     finally:
         # Clean up sys.path
@@ -94,24 +92,6 @@ def discover_agent(agent_name: str, base_path: Optional[Path] = None) -> Agent:
     raise ValueError(f"Agent '{agent_name}' not found {search_hint}.")
 
 
-def _extract_agent_names(py_file: Path) -> list[str]:
-    """Parse ``py_file`` and return Paigeant agent names defined within."""
-
-    try:
-        definitions = discover_agents_in_module(py_file)
-    except (OSError, SyntaxError):
-        return []
-
-    names: list[str] = []
-    for definition in definitions:
-        if definition.name and definition.name not in names:
-            names.append(definition.name)
-        for export in definition.exports:
-            if export and export not in names:
-                names.append(export)
-    return names
-
-
 def discover_agents_in_path(
     search_path: Path, respect_gitignore: bool = True
 ) -> list[dict[str, object]]:
@@ -125,12 +105,21 @@ def discover_agents_in_path(
     seen: set[tuple[str, Path]] = set()
 
     for py_file in _iter_python_files(resolved_path, respect_gitignore):
-        for agent_name in _extract_agent_names(py_file):
-            key = (agent_name, py_file)
-            if key in seen:
-                continue
-            discoveries.append({"name": agent_name, "path": py_file})
-            seen.add(key)
+        try:
+            definitions = discover_agents_in_module(py_file)
+        except (OSError, SyntaxError):
+            continue
+
+        for definition in definitions:
+            candidates = [definition.name, *definition.exports]
+            for agent_name in candidates:
+                if not agent_name:
+                    continue
+                key = (agent_name, py_file)
+                if key in seen:
+                    continue
+                discoveries.append({"name": agent_name, "path": py_file})
+                seen.add(key)
 
     discoveries.sort(key=lambda item: (str(item["path"]), item["name"]))
 
