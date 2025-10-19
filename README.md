@@ -2,17 +2,17 @@
 
 **Durable, asynchronous workflows for distributed AI agents**
 
-Paigeant offers the runway for Pydantic AI agents to show off, let them dive into long running tasks, dynamically bring other agents into the show and have a backup ready whenever they fail. 
+Paigeant offers the runway for Pydantic AI agents dive into long running tasks, fail gracefully without crashing workflows, and dynamically make use of agents available in the environment. 
 
-## What does the show have to offer?
+## What does Paigeant have to offer?
 
-- 🕒 **Perfect timing** – Each agent get's the time and space they need with asynchronous workflows, fully decoupled from each other.
-- 🌍 **Full backstage visibility** – Agents know about available agents and activities and can add them dynamically to the show. 
-- 💾 **Always a backup** – Workflow state travels with the message, if an agent slipped, they can pick up right where they left.
-- 🔐 **Gossip-safe environment** – Built-in OAuth 2.0 on-behalf-of tokens and JSON Web Signatures ensure that secrets stay between agents.
-- 👯 **Self-guided choreography** – Workflow execution without an orchestrator, agents pass a routing slip around, keeping everyone up to date.
-- 👠 **Flexible runway** – Agents can communicate with in-memory, Redis or RabbitMQ transport. To customize for special shows, the `BaseTransport` class allows to bring your own broker.
-- 🎯 **Easy to manage** – A FastAPI-style API, dependency injection, and a CLI make it easy to setup your own show.
+- 🕒 **Distributed runtime environments** – Execute each agent in it's own compute instance, enabling clear role assignments and strong fault isolation.
+- 🌍 **Enhanced context** – Agents know about available agents and their capabilities and can add them dynamically to the workflow execution. 
+- 💾 **Always a backup** – Workflow state travels with the message, making a single agent execution repeatable.
+- 🔐 **Security as a first-class citizen** – Built-in OAuth 2.0 on-behalf-of tokens and JSON Web Signatures ensure that secrets stay between agents. Designated runtime environments allow for precise role assignment.
+- 👯 **Self-guided choreography** – Workflow execution without an orchestrator, agents pass a routing slip around. This makes Paigeant a lightweight but yet powerful execution engine.
+- 👠 **Flexible runway** – Agents can communicate with in-memory, Redis or RabbitMQ transport. The `BaseTransport` class allows to bring your own broker.
+- 🎯 **Easy to manage** – A FastAPI-style API, dependency injection, and a CLI make it easy to define and deploy your workflow.
 
 ## Quick Start
 > [!IMPORTANT]
@@ -40,6 +40,7 @@ from slack_sdk.web.async_client import AsyncWebClient
 
 dispatcher = WorkflowDispatcher()
 
+# PaigeantAgent is a subclass of pydantic AI's Agent, adding Paigeant's execution capabilities
 # Two agents which will be out on the runway
 extractor = PaigeantAgent(
     "anthropic:claude-3-5",
@@ -71,7 +72,7 @@ async def send_joke_to_slack(ctx: RunContext[WorkflowDependencies]):
     await client.chat_postMessage(channel="team-dad-jokes", text=ctx.previous_output)
 
 async def main():
-    # Agents added to the main show (aka workflow)
+    # Agents added to the workflow
     extractor.add_to_runway(prompt="Come up with a topic for a joke", deps=WorkflowDependencies())
     writer.add_to_runway(
         prompt="""
@@ -82,7 +83,7 @@ async def main():
         deps=WorkflowDependencies(),
     )
 
-    # Agent getting ready to be called out
+    # Agent registered as available activity for other agents
     notifier.register_activity(prompt="Post the joke to Slack", deps=WorkflowDependencies())
 
     # Trigger the workflow run to start the show
@@ -116,26 +117,30 @@ uv run paigeant workflow <correlation_id>
 
 ## Core Concepts
 
+- 🤖 **PaigeantAgent** – lightweight wrapper around `pydantic_ai.Agent` that can access previous outputs and optionally edit the itinerary.
 - 🗺️ **Routing Slip** – ordered list of `ActivitySpec` items representing the remaining itinerary and logs of executed steps.
 - ✉️ **PaigeantMessage** – the envelope exchanged over the broker containing the routing slip, payload, correlation ID, trace context, and optional security fields.
 - 📮 **Transport** – abstracts the broker. Ships with in-memory, Redis and RabbitMQ implementations.
-- 🤖 **PaigeantAgent** – lightweight wrapper around `pydantic_ai.Agent` that can access previous outputs and optionally edit the itinerary.
 - 👷 **ActivityExecutor** – worker that subscribes to a queue, runs the agent, and forwards the message.
 
 ## Use Cases
 
-- 🌐 **Distributed AI workflows** – Coordinate microservices or serverless functions without brittle RPC chains.
+- 🌐 **Distributed AI workflows** – Coordinate microservices or serverless functions without synchronous call chains.
 - ⏱️ **Long-running and resilient workflows** – Durable messaging ensures progress survives restarts or failures.
 - 🔄 **Dynamic itineraries** – Agents can insert follow-up steps based on intermediate results or user input.
 - 🤝 **Federated architectures** – Combine `pydantic-ai` and `pydantic-graph` for complex in-process logic while using Paigeant for cross-service orchestration.
 
 ## Roadmap
 
-- 📇 **Dynamic registry and service discovery** – Central registry so agents can publish capabilities and planners can assemble workflows without pre-configuration.
-- ↩️ **Robust retries and compensation** – Exponential backoff, dead-letter queues, and Saga-style rollback for resilience.
-- 🕸️ **Parallel execution** – Scatter-gather patterns to run tasks concurrently with an aggregator step.
-- 🌍 **Cross-language interoperability** – JSON Schema definitions for message and routing-slip formats to support TypeScript, .NET, Rust, and more.
-- 👀 **Enhanced observability** – Built-in distributed tracing today; metrics and dashboards on the horizon.
+| Feature Category | Feature |  |  |
+|------------------|-------------|------------|------------|
+| **Transports** | ✅ InMemory | ✅ Redis | 🔜 RabbitMQ, Kafka |
+| **Workflow State Persistence** | ✅ InMemory, SQLite | ✅ PostgreSQL | 🔜 MongoDB, Cassandra |
+| **Security** | ✅ Basic Auth | ✅ OAuth 2.0, JWS | 🔜 RBAC, Audit Logs, OBO-Token |
+| **Observability** | ✅ Logging | ✅ Tracing | 🔜 Metrics, Dashboards |
+| **Execution** | ✅ Sequential | ✅ Durable | 🔜 Parallel, Compensation |
+| **Discovery** | ✅ Static | 🔜 Dynamic | 🔜 Service Mesh |
+| **Context** | ✅ RoutingSlip | 🔜 Agent Memory |
 
 ## Contributing
 
