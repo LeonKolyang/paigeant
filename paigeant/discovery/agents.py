@@ -24,6 +24,30 @@ class _AgentCandidate(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ImportedSymbol(BaseModel):
+    """Representation of a symbol imported into a module."""
+
+    module: Optional[str] = None
+    name: str
+    alias: str
+    level: int = 0
+    span: Optional[SourceSpan] = None
+
+    model_config = ConfigDict(frozen=True)
+
+
+class ModuleAgentReport(BaseModel):
+    """Summary of Paigeant agent analysis for a module."""
+
+    path: Path
+    module: Optional[str]
+    definitions: tuple[AgentDefinition, ...]
+    export_names: tuple[str, ...]
+    imported_symbols: tuple[ImportedSymbol, ...]
+
+    model_config = ConfigDict(frozen=True)
+
+
 class AgentModuleInspector(BaseInspector):
     """Collect Paigeant agent definitions from a Python module."""
 
@@ -38,6 +62,7 @@ class AgentModuleInspector(BaseInspector):
         )
         self._candidates: list[_AgentCandidate] = []
         self._export_names: set[str] = set()
+        self._imported_symbols: list[ImportedSymbol] = []
 
     # ------------------------------------------------------------------
     # Assignment handling
@@ -51,6 +76,22 @@ class AgentModuleInspector(BaseInspector):
         if self._handle_assignment(node.value, (node.target,)):
             return
         self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # pragma: no cover - AST
+        for alias in node.names:
+            if alias.name == "*":
+                continue
+            alias_name = alias.asname or alias.name.split(".")[-1]
+            self._imported_symbols.append(
+                ImportedSymbol(
+                    module=node.module,
+                    name=alias.name,
+                    alias=alias_name,
+                    level=node.level or 0,
+                    span=node_span(node),
+                )
+            )
+        super().visit_ImportFrom(node)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -171,17 +212,49 @@ class AgentModuleInspector(BaseInspector):
                 return tuple(exports)
         return tuple(name for name in assigned if name)
 
+    # ------------------------------------------------------------------
+    # Metadata accessors
+    # ------------------------------------------------------------------
+    @property
+    def export_names(self) -> tuple[str, ...]:
+        return tuple(self._export_names)
+
+    @property
+    def imported_symbols(self) -> tuple[ImportedSymbol, ...]:
+        return tuple(self._imported_symbols)
+
 
 def discover_agents_in_module(
     path: Path, *, module: Optional[str] = None
 ) -> tuple[AgentDefinition, ...]:
     """Parse and analyze ``path`` returning discovered agent definitions."""
 
+    report = inspect_agents_in_module(path, module=module)
+    return report.definitions
+
+
+def inspect_agents_in_module(
+    path: Path, *, module: Optional[str] = None
+) -> ModuleAgentReport:
+    """Inspect ``path`` returning a rich module analysis report."""
+
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     inspector = AgentModuleInspector(path=path, module=module)
     inspector.visit(tree)
-    return inspector.build_definitions()
+    return ModuleAgentReport(
+        path=path,
+        module=module,
+        definitions=inspector.build_definitions(),
+        export_names=inspector.export_names,
+        imported_symbols=inspector.imported_symbols,
+    )
 
 
-__all__ = ["AgentModuleInspector", "discover_agents_in_module"]
+__all__ = [
+    "AgentModuleInspector",
+    "ImportedSymbol",
+    "ModuleAgentReport",
+    "discover_agents_in_module",
+    "inspect_agents_in_module",
+]
