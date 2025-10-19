@@ -1,5 +1,6 @@
 """Discovery domain models and helpers."""
 
+from .agents import AgentModuleInspector, discover_agents_in_module
 from .entities import (
     AgentDefinition,
     DependencyDefinition,
@@ -9,8 +10,11 @@ from .entities import (
     WorkflowAgentRef,
     WorkflowDefinition,
 )
+from .workflows import WorkflowModuleInspector, discover_workflow_in_module
 
 __all__ = [
+    "AgentModuleInspector",
+    "discover_agents_in_module",
     "AgentDefinition",
     "DependencyDefinition",
     "DiscoverySource",
@@ -18,4 +22,6 @@ __all__ = [
     "SourceSpan",
     "WorkflowAgentRef",
     "WorkflowDefinition",
+    "WorkflowModuleInspector",
+    "discover_workflow_in_module",
 ]
