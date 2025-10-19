@@ -5,13 +5,9 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from paigeant.cli import (
-    _analyze_workflow_file,
-    _format_workflow_path,
-    _load_gitignore_patterns,
-    _should_ignore_path,
-    app,
-)
+from paigeant.cli import app
+from paigeant.cli_utils.fs import _load_gitignore_patterns, _should_ignore_path
+from paigeant.cli_utils.workflow import _analyze_workflow_file, _format_workflow_path
 
 
 def _write_workflow(path: Path) -> None:

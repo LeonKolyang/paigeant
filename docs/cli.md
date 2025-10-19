@@ -14,7 +14,7 @@
 
 #### extended design
 - Commands managing agents:
-    - `paigeant agent <command>`
+    - `paigeant agent discover --path <dir>` -> list Paigeant agents in a directory (respects `.gitignore` by default)
 - Commands managing workflows:
     - `paigeant workflow`
         - `paigeant workflow discover` -> workflow files with description - find workflows defined in the directory
