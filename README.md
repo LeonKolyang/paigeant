@@ -2,11 +2,11 @@
 
 **Durable, asynchronous workflows for distributed AI agents**
 
-Paigeant offers the runway for Pydantic AI agents to show off, let them dive into long running tasks, dynamically bring other agents into the show and have a backup ready whenever they fail. 
+Paigeant offers the runway for Pydantic AI agents dive into long running tasks, fail gracefully without crashing workflows, and dynamically make use of agents available in the environment. 
 
-## What does the show have to offer?
+## What does Paigeant have to offer?
 
-- 🕒 **Perfect timing** – Each agent get's the time and space they need with asynchronous workflows, fully decoupled from each other.
+- 🕒 **Distributed runtime environments** – Execute each agent in it's own compute instance, enabling clear role assignments and strong fault isolation.
 - 🌍 **Full backstage visibility** – Agents know about available agents and activities and can add them dynamically to the show. 
 - 💾 **Always a backup** – Workflow state travels with the message, if an agent slipped, they can pick up right where they left.
 - 🔐 **Gossip-safe environment** – Built-in OAuth 2.0 on-behalf-of tokens and JSON Web Signatures ensure that secrets stay between agents.
