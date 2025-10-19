@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: uv pip install -e '.[dev,test]'
       - name: Run unit tests
-        run: task test:unit -- --cov-report=xml:coverage.xml
+        run: task test:unit -- --cov-report=markdown:coverage.md
       - name: Run integration tests
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -43,6 +43,5 @@ jobs:
       - name: Output coverage report to workflow output
         id: coverage_output
         run: |
-          echo "coverage_report<<EOF" >> $GITHUB_OUTPUT
-          cat coverage.xml >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "## Pytest Coverage Report" >> $GITHUB_STEP_SUMMARY
+          cat coverage.md >> $GITHUB_STEP_SUMMARY
