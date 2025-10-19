@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Iterable, Optional, Set
+from typing import Optional
 
 import typer
 
 from paigeant import ActivityExecutor, get_repository, get_transport
 from paigeant.agent.discovery import discover_agents_in_path
-from paigeant.cli_utils.fs import _load_gitignore_patterns, _should_ignore_path
+from paigeant.cli_utils.fs import _iter_python_files
 from paigeant.cli_utils.workflow import _analyze_workflow_file, _format_workflow_path
 
 app = typer.Typer(help="CLI for Paigeant workflows")
@@ -197,29 +197,10 @@ def workflow_discover(
         typer.secho("Specified path does not exist", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    # Load gitignore patterns if requested
-    gitignore_patterns: Set[str] = set()
-    if respect_gitignore:
-        gitignore_patterns = _load_gitignore_patterns(search_path)
-
-    python_files: Iterable[Path]
-    if search_path.is_file():
-        python_files = [search_path]
-    else:
-        all_python_files = sorted(search_path.rglob("*.py"))
-        if respect_gitignore:
-            python_files = [
-                f
-                for f in all_python_files
-                if not _should_ignore_path(f, gitignore_patterns, search_path)
-            ]
-        else:
-            python_files = all_python_files
+    python_files = _iter_python_files(search_path, respect_gitignore=respect_gitignore)
 
     discoveries = []
     for py_file in python_files:
-        if py_file.is_dir():
-            continue
         try:
             metadata = _analyze_workflow_file(py_file)
         except SyntaxError as exc:

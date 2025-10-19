@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 from pathlib import Path
-from typing import Set
+from typing import Iterable, Set
 
 
 def _load_gitignore_patterns(search_path: Path) -> Set[str]:
@@ -90,3 +90,26 @@ def _should_ignore_path(path: Path, patterns: Set[str], base_path: Path) -> bool
                     return True
 
     return False
+
+
+def _iter_python_files(
+    search_path: Path, respect_gitignore: bool = True
+) -> Iterable[Path]:
+    """Yield Python files contained within ``search_path`` respecting ``.gitignore``."""
+
+    if search_path.is_file():
+        if search_path.suffix == ".py":
+            yield search_path
+        return
+
+    gitignore_patterns: Set[str] = set()
+    if respect_gitignore:
+        gitignore_patterns = _load_gitignore_patterns(search_path)
+
+    for py_file in sorted(search_path.rglob("*.py")):
+        if respect_gitignore and _should_ignore_path(
+            py_file, gitignore_patterns, search_path
+        ):
+            continue
+        if py_file.is_file():
+            yield py_file

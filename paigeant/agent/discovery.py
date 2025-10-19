@@ -8,11 +8,11 @@ import sys
 from importlib import import_module
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 from pydantic_ai import Agent
 
-from paigeant.cli_utils.fs import _load_gitignore_patterns, _should_ignore_path
+from paigeant.cli_utils.fs import _iter_python_files
 from paigeant.cli_utils.workflow import _WorkflowModuleAnalyzer
 
 
@@ -85,23 +85,6 @@ def discover_agent(agent_name: str, base_path: Optional[Path] = None) -> Agent:
             raise ValueError(f"Agent {agent_name} not found in available modules")
 
     raise ValueError(f"Agent {agent_name} not found in available modules")
-
-
-def _iter_python_files(search_path: Path, respect_gitignore: bool) -> Iterable[Path]:
-    if search_path.is_file():
-        yield search_path
-        return
-
-    gitignore_patterns = set()
-    if respect_gitignore:
-        gitignore_patterns = _load_gitignore_patterns(search_path)
-
-    all_python_files = sorted(search_path.rglob("*.py"))
-    for py_file in all_python_files:
-        if respect_gitignore and _should_ignore_path(py_file, gitignore_patterns, search_path):
-            continue
-        if py_file.is_file():
-            yield py_file
 
 
 def _extract_agent_names(py_file: Path) -> list[str]:
