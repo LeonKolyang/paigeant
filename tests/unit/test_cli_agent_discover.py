@@ -11,7 +11,7 @@ from paigeant.cli import app
 def _write_agent_module(path: Path, agent_name: str = "primary") -> None:
     path.write_text(
         textwrap.dedent(
-            f'''
+            f"""
             from paigeant import PaigeantAgent, WorkflowDependencies, WorkflowDispatcher
 
 
@@ -25,7 +25,7 @@ def _write_agent_module(path: Path, agent_name: str = "primary") -> None:
                 dispatcher=dispatcher,
                 deps_type=CustomDeps,
             )
-            '''
+            """
         ).strip()
         + "\n",
         encoding="utf-8",
@@ -71,4 +71,5 @@ def test_agent_discover_cli_missing_directory() -> None:
     )
 
     assert result.exit_code == 1
-    assert "Specified path does not exist" in result.stdout
+    expected_path = str(Path("./does-not-exist").expanduser().resolve())
+    assert f"Specified path does not exist: {expected_path}" in result.stdout

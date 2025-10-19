@@ -35,8 +35,11 @@ class TestFindAgentInFile:
 
     def test_agent_not_found_in_file(self, test_agent_file):
         """Test error when agent doesn't exist in file."""
-        with pytest.raises(ValueError, match="Agent nonexistent_agent not found"):
+        with pytest.raises(ValueError) as exc:
             find_agent_in_file("nonexistent_agent", test_agent_file)
+        message = str(exc.value)
+        assert "Agent 'nonexistent_agent'" in message
+        assert str(test_agent_file) in message
 
 
 class TestFindAgentInDirectory:
@@ -87,11 +90,19 @@ class TestDiscoverAgent:
 
         # Since we can't easily mock the directory scanning,
         # just test that it raises ValueError when agent is not found
-        with pytest.raises(ValueError, match="Agent nonexistent_agent not found"):
+        with pytest.raises(ValueError) as exc:
             discover_agent("nonexistent_agent")
+        message = str(exc.value)
+        assert "Agent 'nonexistent_agent'" in message
+        assert "in directory" in message
+        assert str(tmp_path.resolve()) in message
 
     def test_discover_agent_invalid_path(self):
         """Test error when path is neither file nor directory."""
         invalid_path = Path("/nonexistent/path")
-        with pytest.raises(ValueError, match="Agent test_agent not found"):
+        with pytest.raises(ValueError) as exc:
             discover_agent("test_agent", invalid_path)
+        message = str(exc.value)
+        assert "Agent 'test_agent'" in message
+        assert str(invalid_path) in message
+        assert "does not exist" in message

@@ -78,7 +78,9 @@ def agent_discover(
     typer.echo(f"Discovering agents in: {search_path}")
 
     if not search_path.exists():
-        typer.secho("Specified path does not exist", fg=typer.colors.RED)
+        typer.secho(
+            f"Specified path does not exist: {search_path}", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
     try:
@@ -194,7 +196,9 @@ def workflow_discover(
     typer.echo(f"Discovering workflows in: {search_path}")
 
     if not search_path.exists():
-        typer.secho("Specified path does not exist", fg=typer.colors.RED)
+        typer.secho(
+            f"Specified path does not exist: {search_path}", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
     python_files = _iter_python_files(search_path, respect_gitignore=respect_gitignore)

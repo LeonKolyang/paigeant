@@ -10,6 +10,7 @@ from .entities import (
     WorkflowAgentRef,
     WorkflowDefinition,
 )
+from .translation import agent_definition_to_legacy, workflow_definition_to_legacy
 from .workflows import WorkflowModuleInspector, discover_workflow_in_module
 
 __all__ = [
@@ -24,4 +25,6 @@ __all__ = [
     "WorkflowDefinition",
     "WorkflowModuleInspector",
     "discover_workflow_in_module",
+    "agent_definition_to_legacy",
+    "workflow_definition_to_legacy",
 ]

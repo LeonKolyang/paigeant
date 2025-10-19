@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import pkgutil
 import sys
 from importlib import import_module
@@ -13,7 +12,7 @@ from typing import Optional
 from pydantic_ai import Agent
 
 from paigeant.cli_utils.fs import _iter_python_files
-from paigeant.cli_utils.workflow import _WorkflowModuleAnalyzer
+from paigeant.discovery import discover_agents_in_module
 
 
 def find_agent_in_file(agent_name: str, base_path: Path) -> Agent:
@@ -27,7 +26,7 @@ def find_agent_in_file(agent_name: str, base_path: Path) -> Agent:
         if hasattr(module_obj, agent_name):
             return getattr(module_obj, agent_name)
         else:
-            raise ValueError(f"Agent {agent_name} not found in file {base_path}")
+            raise ValueError(f"Agent '{agent_name}' not found in file {base_path}")
 
 
 def find_agent_in_directory(agent_name: str, base_path: Path) -> Agent:
@@ -70,58 +69,47 @@ def discover_agent(agent_name: str, base_path: Optional[Path] = None) -> Agent:
     Raises:
         ValueError: If no agent with ``agent_name`` can be located.
     """
-    base_path = base_path if base_path else Path.cwd()
+    search_path = (base_path or Path.cwd()).expanduser()
+    if search_path.exists():
+        search_path = search_path.resolve()
 
     # Handle single Python file
-    if base_path.suffix == ".py" and base_path.is_file():
-        return find_agent_in_file(agent_name, base_path)
+    if search_path.suffix == ".py" and search_path.is_file():
+        return find_agent_in_file(agent_name, search_path)
 
     # Handle directory - scan for Python modules
-    if base_path.is_dir():
-        result = find_agent_in_directory(agent_name, base_path)
+    if search_path.is_dir():
+        result = find_agent_in_directory(agent_name, search_path)
         if result is not None:
             return result
+        search_hint = f"in directory {search_path}"
+    else:
+        if base_path is None:
+            search_hint = f"in directory {search_path}"
+        elif not search_path.exists():
+            search_hint = f"because {search_path} does not exist"
         else:
-            raise ValueError(f"Agent {agent_name} not found in available modules")
+            search_hint = f"because {search_path} is not a Python file or directory"
 
-    raise ValueError(f"Agent {agent_name} not found in available modules")
+    raise ValueError(f"Agent '{agent_name}' not found {search_hint}.")
 
 
 def _extract_agent_names(py_file: Path) -> list[str]:
     """Parse ``py_file`` and return Paigeant agent names defined within."""
 
     try:
-        source = py_file.read_text(encoding="utf-8")
-    except OSError:
+        definitions = discover_agents_in_module(py_file)
+    except (OSError, SyntaxError):
         return []
 
-    try:
-        tree = ast.parse(source, filename=str(py_file))
-    except SyntaxError:
-        return []
-
-    analyzer = _WorkflowModuleAnalyzer()
-    analyzer.visit(tree)
-
-    agent_names: list[str] = []
-    for info in analyzer.agent_infos:
-        name = info.get("name")
-        if isinstance(name, str) and name:
-            if name not in agent_names:
-                agent_names.append(name)
-            continue
-        variables = info.get("variables") or []
-        if isinstance(variables, list):
-            for variable in variables:
-                if (
-                    isinstance(variable, str)
-                    and variable
-                    and variable not in agent_names
-                ):
-                    agent_names.append(variable)
-                    break
-
-    return agent_names
+    names: list[str] = []
+    for definition in definitions:
+        if definition.name and definition.name not in names:
+            names.append(definition.name)
+        for export in definition.exports:
+            if export and export not in names:
+                names.append(export)
+    return names
 
 
 def discover_agents_in_path(
