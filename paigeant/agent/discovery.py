@@ -11,6 +11,9 @@ from typing import Optional
 
 from pydantic_ai import Agent
 
+from paigeant.cli_utils.fs import _iter_python_files
+from paigeant.discovery import discover_agents_in_module
+
 
 def find_agent_in_file(agent_name: str, base_path: Path) -> Agent:
     module_name = base_path.stem
@@ -23,7 +26,7 @@ def find_agent_in_file(agent_name: str, base_path: Path) -> Agent:
         if hasattr(module_obj, agent_name):
             return getattr(module_obj, agent_name)
         else:
-            raise ValueError(f"Agent {agent_name} not found in file {base_path}")
+            raise ValueError(f"Agent '{agent_name}' not found in file {base_path}")
 
 
 def find_agent_in_directory(agent_name: str, base_path: Path) -> Agent:
@@ -35,7 +38,6 @@ def find_agent_in_directory(agent_name: str, base_path: Path) -> Agent:
     try:
         for module in pkgutil.walk_packages([str_base_path]):
             module_name = module.name
-            print(f"Checking module: {module_name}")
             if module_name.startswith("paigeant"):
                 continue
             try:
@@ -43,7 +45,6 @@ def find_agent_in_directory(agent_name: str, base_path: Path) -> Agent:
                 if hasattr(module_obj, agent_name):
                     return getattr(module_obj, agent_name)
             except Exception as e:
-                print(f"Error importing {module_name}, working dir {Path.cwd()}: {e}")
                 continue
     finally:
         # Clean up sys.path
@@ -66,18 +67,60 @@ def discover_agent(agent_name: str, base_path: Optional[Path] = None) -> Agent:
     Raises:
         ValueError: If no agent with ``agent_name`` can be located.
     """
-    base_path = base_path if base_path else Path.cwd()
+    search_path = (base_path or Path.cwd()).expanduser()
+    if search_path.exists():
+        search_path = search_path.resolve()
 
     # Handle single Python file
-    if base_path.suffix == ".py" and base_path.is_file():
-        return find_agent_in_file(agent_name, base_path)
+    if search_path.suffix == ".py" and search_path.is_file():
+        return find_agent_in_file(agent_name, search_path)
 
     # Handle directory - scan for Python modules
-    if base_path.is_dir():
-        result = find_agent_in_directory(agent_name, base_path)
+    if search_path.is_dir():
+        result = find_agent_in_directory(agent_name, search_path)
         if result is not None:
             return result
+        search_hint = f"in directory {search_path}"
+    else:
+        if base_path is None:
+            search_hint = f"in directory {search_path}"
+        elif not search_path.exists():
+            search_hint = f"because {search_path} does not exist"
         else:
-            raise ValueError(f"Agent {agent_name} not found in available modules")
+            search_hint = f"because {search_path} is not a Python file or directory"
 
-    raise ValueError(f"Agent {agent_name} not found in available modules")
+    raise ValueError(f"Agent '{agent_name}' not found {search_hint}.")
+
+
+def discover_agents_in_path(
+    search_path: Path, respect_gitignore: bool = True
+) -> list[dict[str, object]]:
+    """Discover Paigeant agents by analyzing Python modules under ``search_path``."""
+
+    resolved_path = search_path.expanduser().resolve()
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Search path does not exist: {resolved_path}")
+
+    discoveries: list[dict[str, object]] = []
+    seen: set[tuple[str, Path]] = set()
+
+    for py_file in _iter_python_files(resolved_path, respect_gitignore):
+        try:
+            definitions = discover_agents_in_module(py_file)
+        except (OSError, SyntaxError):
+            continue
+
+        for definition in definitions:
+            candidates = [definition.name, *definition.exports]
+            for agent_name in candidates:
+                if not agent_name:
+                    continue
+                key = (agent_name, py_file)
+                if key in seen:
+                    continue
+                discoveries.append({"name": agent_name, "path": py_file})
+                seen.add(key)
+
+    discoveries.sort(key=lambda item: (str(item["path"]), item["name"]))
+
+    return discoveries

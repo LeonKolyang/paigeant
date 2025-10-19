@@ -4,23 +4,25 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Iterable, Optional, Set
+from typing import Optional
 
 import typer
 
 from paigeant import ActivityExecutor, get_repository, get_transport
+from paigeant.agent.discovery import discover_agents_in_path
+from paigeant.cli_utils.fs import _iter_python_files
 from paigeant.cli_utils.workflow import (
     _analyze_workflow_file,
     _format_workflow_path,
-    _load_gitignore_patterns,
-    _should_ignore_path,
+    workflow_agent_names,
+    workflow_dependency_names,
 )
 
-app = typer.Typer(help="CLI for Paigeant workflows")
+app = typer.Typer(help="CLI for Paigeant workflows", no_args_is_help=True)
 
 # Command groups
-agent_app = typer.Typer(help="Commands for managing agents")
-workflow_app = typer.Typer(help="Commands for managing workflows")
+agent_app = typer.Typer(help="Commands for managing agents", no_args_is_help=True)
+workflow_app = typer.Typer(help="Commands for managing workflows", no_args_is_help=True)
 
 app.add_typer(agent_app, name="agent")
 app.add_typer(workflow_app, name="workflow")
@@ -66,6 +68,37 @@ def agent_execute(
     )
     print("Starting agent:", agent_name)
     asyncio.run(executor.start(lifespan=lifespan))
+
+
+@agent_app.command("discover")
+def agent_discover(
+    path: Optional[Path] = None,
+    respect_gitignore: bool = typer.Option(
+        True, help="Skip files and directories specified in .gitignore files"
+    ),
+) -> None:
+    """Discover Paigeant agents defined within Python files."""
+
+    search_path = (path or Path.cwd()).expanduser().resolve()
+    typer.echo(f"Discovering agents in: {search_path}")
+
+    if not search_path.exists():
+        typer.secho(
+            f"Specified path does not exist: {search_path}", fg=typer.colors.RED
+        )
+        raise typer.Exit(code=1)
+
+    discoveries = discover_agents_in_path(
+        search_path, respect_gitignore=respect_gitignore
+    )
+
+    if not discoveries:
+        typer.echo("No agents discovered.")
+        return
+
+    for item in discoveries:
+        display_path = _format_workflow_path(item["path"], search_path)
+        typer.echo(f"{item['name']} - {display_path}")
 
 
 @workflow_app.command("list")
@@ -164,32 +197,15 @@ def workflow_discover(
     typer.echo(f"Discovering workflows in: {search_path}")
 
     if not search_path.exists():
-        typer.secho("Specified path does not exist", fg=typer.colors.RED)
+        typer.secho(
+            f"Specified path does not exist: {search_path}", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
-    # Load gitignore patterns if requested
-    gitignore_patterns: Set[str] = set()
-    if respect_gitignore:
-        gitignore_patterns = _load_gitignore_patterns(search_path)
-
-    python_files: Iterable[Path]
-    if search_path.is_file():
-        python_files = [search_path]
-    else:
-        all_python_files = sorted(search_path.rglob("*.py"))
-        if respect_gitignore:
-            python_files = [
-                f
-                for f in all_python_files
-                if not _should_ignore_path(f, gitignore_patterns, search_path)
-            ]
-        else:
-            python_files = all_python_files
+    python_files = _iter_python_files(search_path, respect_gitignore=respect_gitignore)
 
     discoveries = []
     for py_file in python_files:
-        if py_file.is_dir():
-            continue
         try:
             metadata = _analyze_workflow_file(py_file)
         except SyntaxError as exc:
@@ -209,11 +225,11 @@ def workflow_discover(
         typer.echo("No workflows discovered.")
         return
 
-    for item in discoveries:
-        display_path = _format_workflow_path(item["path"], search_path)
-        description = item["description"] or "No description found"
-        agents = item["agents"] or ["(none found)"]
-        dependencies = item["dependencies"] or ["(none found)"]
+    for definition in discoveries:
+        display_path = _format_workflow_path(definition.source.file_path, search_path)
+        description = definition.description or "No description found"
+        agents = workflow_agent_names(definition) or ["(none found)"]
+        dependencies = workflow_dependency_names(definition) or ["(none found)"]
         typer.echo(f"{display_path} - {description}")
         typer.echo(f"  Agents: {', '.join(agents)}")
         typer.echo(f"  Dependencies: {', '.join(dependencies)}")

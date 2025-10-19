@@ -115,6 +115,14 @@ uv run paigeant workflows
 uv run paigeant workflow <correlation_id>
 ```
 
+Discover agents defined in your project:
+
+```bash
+uv run paigeant agent discover --path ./guides
+# Include files matched by .gitignore entries
+uv run paigeant agent discover --path ./guides --no-respect-gitignore
+```
+
 ## Core Concepts
 
 - 🤖 **PaigeantAgent** – lightweight wrapper around `pydantic_ai.Agent` that can access previous outputs and optionally edit the itinerary.

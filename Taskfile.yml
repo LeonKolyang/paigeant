@@ -109,7 +109,7 @@ tasks:
   test:unit:
     desc: "Run unit tests"
     cmds:
-      - "{{.PYTHON_CMD}} -m pytest tests/unit/ -v"
+      - "{{.PYTHON_CMD}} -m pytest tests/unit/ -v --cov=paigeant --cov-fail-under=75 {{.CLI_ARGS}}"
 
   test:integration:
     desc: "Run integration tests"
