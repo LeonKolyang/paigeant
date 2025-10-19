@@ -30,6 +30,9 @@ redis = [
 ]
 
 [dependency-groups]
+dev = [
+    "ruff>=0.14.1",
+]
 test = [
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",

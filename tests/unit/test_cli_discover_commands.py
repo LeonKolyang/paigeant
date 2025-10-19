@@ -69,6 +69,39 @@ def _write_workflow_module(path: Path) -> None:
     )
 
 
+def _write_annotated_agent_module(path: Path) -> None:
+    _write_module(
+        path,
+        """
+        from paigeant.dispatch import WorkflowDispatcher
+        from paigeant.agent import PaigeantAgent
+
+        dispatcher = WorkflowDispatcher()
+        primary: PaigeantAgent = PaigeantAgent(
+            name="annotated_agent",
+            dispatcher=dispatcher,
+        )
+        """,
+    )
+
+
+def _write_alias_agent_module(path: Path) -> None:
+    _write_module(
+        path,
+        """
+        from paigeant import WorkflowDispatcher
+        from paigeant.agent.wrapper import PaigeantAgent as AliasAgent
+
+
+        dispatcher = WorkflowDispatcher()
+        alias_agent = AliasAgent(
+            name="alias_import_agent",
+            dispatcher=dispatcher,
+        )
+        """,
+    )
+
+
 def test_workflow_discover_cli_respects_gitignore(tmp_path: Path) -> None:
     visible = tmp_path / "visible.py"
     ignored = tmp_path / "ignored.py"
@@ -103,3 +136,23 @@ def test_agent_discover_cli_respects_gitignore(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "ignored_agent" not in result.stdout
+
+
+def test_agent_discover_cli_handles_alias_import(tmp_path: Path) -> None:
+    module_path = tmp_path / "alias_module.py"
+    _write_alias_agent_module(module_path)
+
+    result = RUNNER.invoke(app, ["agent", "discover", "--path", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "alias_import_agent" in result.stdout
+
+
+def test_agent_discover_cli_handles_annotated(tmp_path: Path) -> None:
+    module_path = tmp_path / "alias_module.py"
+    _write_annotated_agent_module(module_path)
+
+    result = RUNNER.invoke(app, ["agent", "discover", "--path", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "annotated_agent" in result.stdout

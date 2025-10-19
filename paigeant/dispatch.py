@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from anyio import Path
 
 if TYPE_CHECKING:
     from paigeant.agent.wrapper import PaigeantAgent

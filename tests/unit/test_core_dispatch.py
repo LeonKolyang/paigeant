@@ -3,7 +3,6 @@
 import os
 
 import pytest
-from pydantic import BaseModel
 
 from paigeant import (
     PaigeantAgent,
@@ -103,7 +102,7 @@ async def test_dispatcher_topic():
     agent1.add_to_runway(prompt="p1", deps=Deps(token="x"))
     agent2.add_to_runway(prompt="p2", deps=None)
 
-    correlation_id = await dispatcher.dispatch_workflow(transport, {"foo": "bar"})
+    await dispatcher.dispatch_workflow(transport, {"foo": "bar"})
 
     # First queue should contain the published message
     queue = transport._queues["agent1"]

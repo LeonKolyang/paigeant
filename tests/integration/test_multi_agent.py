@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 from pydantic import BaseModel
-from pydantic_ai import RunContext
 
 from paigeant import (
     PaigeantAgent,
