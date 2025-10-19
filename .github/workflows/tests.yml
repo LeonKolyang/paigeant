@@ -34,11 +34,11 @@ jobs:
       - name: Install dependencies
         run: uv pip install -e '.[dev,test]'
       - name: Run unit tests
-        run: task test:unit -- --cov-report=markdown:coverage.md --cov-report=term:skip-covered
+        run: task test:unit -- --cov-report=markdown:coverage.md
       - name: Run integration tests
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: task test:integration
+        run: task test:integration -- --cov-report=markdown:coverage.md --cov-append --cov-fail-under=80 
     
       - name: Output coverage report to workflow output
         id: coverage_output

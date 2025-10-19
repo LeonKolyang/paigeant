@@ -60,38 +60,6 @@ def is_call_to(node: ast.AST, candidates: set[str]) -> bool:
     return func_name in candidates or last in candidates
 
 
-def literal_value(node: ast.AST) -> Any:
-    """Best-effort extraction of Python literal values from AST nodes."""
-
-    if isinstance(node, ast.Constant):
-        return node.value
-    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-        operand = literal_value(node.operand)
-        if operand is MISSING:
-            return MISSING
-        if isinstance(operand, (int, float, complex)):
-            return -operand
-        return MISSING
-    if isinstance(node, (ast.Tuple, ast.List)):
-        items = []
-        for element in node.elts:
-            value = literal_value(element)
-            if value is MISSING:
-                return MISSING
-            items.append(value)
-        return tuple(items) if isinstance(node, ast.Tuple) else items
-    if isinstance(node, ast.Dict):
-        result: dict[Any, Any] = {}
-        for key_node, value_node in zip(node.keys, node.values, strict=True):
-            key = literal_value(key_node)
-            value = literal_value(value_node)
-            if key is MISSING or value is MISSING:
-                return MISSING
-            result[key] = value
-        return result
-    return MISSING
-
-
 def node_span(node: ast.AST) -> Optional[SourceSpan]:
     """Return a SourceSpan for the provided node if pos info is available."""
 

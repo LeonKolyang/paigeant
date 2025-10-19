@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-import pkgutil
-from importlib import import_module
 from typing import Any
 
 from anyio import Path
@@ -12,7 +10,6 @@ from mistralai_azure import Optional
 from pydantic_ai import Agent
 
 from paigeant.agent.discovery import discover_agent
-from paigeant.agent.wrapper import AGENT_REGISTRY
 from paigeant.deps.deserializer import DependencyDeserializer
 
 from .contracts import (
