@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import pkgutil
 import sys
 from dataclasses import dataclass
@@ -14,7 +13,7 @@ from typing import Dict, Optional
 from pydantic_ai import Agent
 
 from paigeant.cli_utils.fs import _iter_python_files
-from paigeant.discovery.agents import AgentModuleInspector, ImportedSymbol
+from paigeant.discovery.agents import ImportedSymbol, inspect_agents_in_module
 from paigeant.discovery.entities import AgentDefinition
 
 
@@ -164,14 +163,10 @@ def _analyze_module(
 ) -> Optional[_ModuleReport]:
     module_name, is_package = _module_name_from_path(search_root, module_root, py_file)
     try:
-        source = py_file.read_text(encoding="utf-8")
-        tree = ast.parse(source, filename=str(py_file))
+        report = inspect_agents_in_module(py_file, module=module_name)
     except (OSError, UnicodeDecodeError, SyntaxError):
         return None
 
-    inspector = AgentModuleInspector(path=py_file, module=module_name)
-    inspector.visit(tree)
-    definitions = inspector.build_definitions()
     package_name = _package_name_for_module(module_name, is_package)
 
     return _ModuleReport(
@@ -179,9 +174,9 @@ def _analyze_module(
         module=module_name,
         package=package_name,
         is_package=is_package,
-        definitions=definitions,
-        export_names=frozenset(inspector.export_names),
-        imports=inspector.imported_symbols,
+        definitions=report.definitions,
+        export_names=frozenset(report.export_names),
+        imports=report.imported_symbols,
     )
 
 

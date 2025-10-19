@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -34,6 +35,17 @@ class ImportedSymbol(BaseModel):
     span: Optional[SourceSpan] = None
 
     model_config = ConfigDict(frozen=True)
+
+
+@dataclass(frozen=True)
+class ModuleAgentReport:
+    """Summary of Paigeant agent analysis for a module."""
+
+    path: Path
+    module: Optional[str]
+    definitions: tuple[AgentDefinition, ...]
+    export_names: tuple[str, ...]
+    imported_symbols: tuple[ImportedSymbol, ...]
 
 
 class AgentModuleInspector(BaseInspector):
@@ -217,11 +229,32 @@ def discover_agents_in_module(
 ) -> tuple[AgentDefinition, ...]:
     """Parse and analyze ``path`` returning discovered agent definitions."""
 
+    report = inspect_agents_in_module(path, module=module)
+    return report.definitions
+
+
+def inspect_agents_in_module(
+    path: Path, *, module: Optional[str] = None
+) -> ModuleAgentReport:
+    """Inspect ``path`` returning a rich module analysis report."""
+
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     inspector = AgentModuleInspector(path=path, module=module)
     inspector.visit(tree)
-    return inspector.build_definitions()
+    return ModuleAgentReport(
+        path=path,
+        module=module,
+        definitions=inspector.build_definitions(),
+        export_names=inspector.export_names,
+        imported_symbols=inspector.imported_symbols,
+    )
 
 
-__all__ = ["AgentModuleInspector", "discover_agents_in_module", "ImportedSymbol"]
+__all__ = [
+    "AgentModuleInspector",
+    "ImportedSymbol",
+    "ModuleAgentReport",
+    "discover_agents_in_module",
+    "inspect_agents_in_module",
+]
