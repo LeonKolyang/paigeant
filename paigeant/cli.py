@@ -9,12 +9,9 @@ from typing import Iterable, Optional, Set
 import typer
 
 from paigeant import ActivityExecutor, get_repository, get_transport
-from paigeant.cli_utils.workflow import (
-    _analyze_workflow_file,
-    _format_workflow_path,
-    _load_gitignore_patterns,
-    _should_ignore_path,
-)
+from paigeant.agent.discovery import discover_agents_in_path
+from paigeant.cli_utils.fs import _load_gitignore_patterns, _should_ignore_path
+from paigeant.cli_utils.workflow import _analyze_workflow_file, _format_workflow_path
 
 app = typer.Typer(help="CLI for Paigeant workflows")
 
@@ -66,6 +63,39 @@ def agent_execute(
     )
     print("Starting agent:", agent_name)
     asyncio.run(executor.start(lifespan=lifespan))
+
+
+@agent_app.command("discover")
+def agent_discover(
+    path: Optional[Path] = None,
+    respect_gitignore: bool = typer.Option(
+        True, help="Skip files and directories specified in .gitignore files"
+    ),
+) -> None:
+    """Discover Paigeant agents defined within Python files."""
+
+    search_path = (path or Path.cwd()).expanduser().resolve()
+    typer.echo(f"Discovering agents in: {search_path}")
+
+    if not search_path.exists():
+        typer.secho("Specified path does not exist", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    try:
+        discoveries = discover_agents_in_path(
+            search_path, respect_gitignore=respect_gitignore
+        )
+    except FileNotFoundError:
+        typer.secho("Specified path does not exist", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    if not discoveries:
+        typer.echo("No agents discovered.")
+        return
+
+    for item in discoveries:
+        display_path = _format_workflow_path(item["path"], search_path)
+        typer.echo(f"{item['name']} - {display_path}")
 
 
 @workflow_app.command("list")

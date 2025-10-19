@@ -7,9 +7,13 @@ import sys
 from importlib import import_module
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from typing import Optional
+from types import ModuleType
+from typing import Iterable, Optional
 
 from pydantic_ai import Agent
+
+from paigeant.cli_utils.fs import _load_gitignore_patterns, _should_ignore_path
+from paigeant.agent.wrapper import PaigeantAgent
 
 
 def find_agent_in_file(agent_name: str, base_path: Path) -> Agent:
@@ -81,3 +85,80 @@ def discover_agent(agent_name: str, base_path: Optional[Path] = None) -> Agent:
             raise ValueError(f"Agent {agent_name} not found in available modules")
 
     raise ValueError(f"Agent {agent_name} not found in available modules")
+
+
+def _iter_python_files(search_path: Path, respect_gitignore: bool) -> Iterable[Path]:
+    if search_path.is_file():
+        yield search_path
+        return
+
+    gitignore_patterns = set()
+    if respect_gitignore:
+        gitignore_patterns = _load_gitignore_patterns(search_path)
+
+    all_python_files = sorted(search_path.rglob("*.py"))
+    for py_file in all_python_files:
+        if respect_gitignore and _should_ignore_path(py_file, gitignore_patterns, search_path):
+            continue
+        if py_file.is_file():
+            yield py_file
+
+
+def _module_name_for_file(py_file: Path, base_path: Path) -> str:
+    try:
+        relative = py_file.relative_to(base_path)
+        module_parts = list(relative.with_suffix("").parts)
+        if module_parts:
+            return "paigeant_discover." + ".".join(module_parts)
+    except ValueError:
+        pass
+    return f"paigeant_discover.{py_file.stem}"
+
+
+def discover_agents_in_path(
+    search_path: Path, respect_gitignore: bool = True
+) -> list[dict[str, object]]:
+    """Discover Paigeant agents by importing Python modules under ``search_path``."""
+
+    resolved_path = search_path.expanduser().resolve()
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Search path does not exist: {resolved_path}")
+
+    discoveries: list[dict[str, object]] = []
+    seen: set[tuple[str, Path]] = set()
+
+    for py_file in _iter_python_files(resolved_path, respect_gitignore):
+        module_name = _module_name_for_file(py_file, resolved_path)
+        module_obj: Optional[ModuleType] = None
+        try:
+            spec = spec_from_file_location(module_name, py_file)
+            if not spec or not spec.loader:
+                continue
+            module_obj = module_from_spec(spec)
+            sys.modules[module_name] = module_obj
+            spec.loader.exec_module(module_obj)
+        except SyntaxError:
+            continue
+        except Exception:
+            continue
+        finally:
+            sys.modules.pop(module_name, None)
+
+        if module_obj is None:
+            continue
+
+        for value in vars(module_obj).values():
+            if not isinstance(value, PaigeantAgent):
+                continue
+            agent_name = getattr(value, "name", None)
+            if not isinstance(agent_name, str) or not agent_name:
+                continue
+            key = (agent_name, py_file)
+            if key in seen:
+                continue
+            discoveries.append({"name": agent_name, "path": py_file})
+            seen.add(key)
+
+    discoveries.sort(key=lambda item: (str(item["path"]), item["name"]))
+
+    return discoveries
