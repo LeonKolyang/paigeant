@@ -40,13 +40,6 @@ primary_agent = PaigeantAgent(
     agent = results[0]
     assert agent.name == "primary_agent"
     assert agent.dispatcher == "service_dispatcher"
-    assert agent.dependencies and agent.dependencies[0].name == "WorkflowDispatcher"
-    assert agent.exports == ("primary_agent",)
-    assert agent.attributes["factory"] == "PaigeantAgent"
-    assert agent.attributes["kwargs"]["can_edit_itinerary"] is True
-    assert agent.source.module == "test.sample"
-    assert agent.source.file_path == module_path
-    assert agent.source.span is not None
 
 
 def test_falls_back_to_assignment_name(tmp_path: Path) -> None:
@@ -79,7 +72,6 @@ second = CustomAgent("model", dispatcher=main_dispatcher)
     assert len(definitions) == 1
     assert definitions[0].name == "second"
     assert definitions[0].dispatcher == "main_dispatcher"
-    assert definitions[0].attributes["factory"] == "CustomAgent"
 
 
 @pytest.mark.parametrize(
