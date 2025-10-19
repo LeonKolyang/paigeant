@@ -32,7 +32,6 @@ class JokeWorkflowDeps(WorkflowDependencies):
 
 dispatcher = WorkflowDispatcher()
 
-
 # First agent: Topic extractor
 topic_extractor_agent = PaigeantAgent(
     "anthropic:claude-3-5-sonnet-latest",
@@ -122,9 +121,9 @@ async def run_three_agent_joke_workflow():
 
     # Dispatch the workflow
     correlation_id = await dispatcher.dispatch_workflow(transport)
-    print(f"Three-agent joke workflow dispatched!")
+    print("Three-agent joke workflow dispatched!")
     print(f"Correlation ID: {correlation_id}")
-    print(f"Workflow will process through all three agents in sequence")
+    print("Workflow will process through all three agents in sequence")
 
     return correlation_id
 

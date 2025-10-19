@@ -44,7 +44,7 @@ def find_agent_in_directory(agent_name: str, base_path: Path) -> Agent:
                 module_obj = import_module(module_name)
                 if hasattr(module_obj, agent_name):
                     return getattr(module_obj, agent_name)
-            except Exception as e:
+            except Exception:
                 continue
     finally:
         # Clean up sys.path

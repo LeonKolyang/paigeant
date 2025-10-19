@@ -270,7 +270,7 @@ def workflow_dispatch(workflow_path: Path, args: Optional[str] = None) -> None:
 
     # Dummy correlation ID for now
     dummy_correlation_id = "abc123-def456-789"
-    typer.echo(f"Workflow dispatched successfully!")
+    typer.echo("Workflow dispatched successfully!")
     typer.echo(f"Correlation ID: {dummy_correlation_id}")
     typer.echo("Start required workers with: paigeant agent execute <agent_name>")
 

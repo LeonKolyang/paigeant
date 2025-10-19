@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, AsyncIterator, Generic, Optional, Tuple, TypeVar
+from typing import AsyncIterator, Generic, Optional, Tuple, TypeVar
 
 from ..contracts import PaigeantMessage
 
